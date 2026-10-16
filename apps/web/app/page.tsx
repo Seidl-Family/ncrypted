@@ -37,25 +37,35 @@ export default function Home() {
       </div>
 
       <h2>Install</h2>
-      <p>Every option needs a Base wallet holding a little USDC. Set its private key as <code>NCRYPTED_WALLET_PRIVATE_KEY</code>. Use a dedicated low-balance wallet.</p>
-      <h3>Claude Code plugin</h3>
+      <p>
+        Creating secrets needs a Base wallet holding a little USDC (no ETH). Create a dedicated one with{" "}
+        <code>npx ncrypted wallet new</code>, which saves the key to <code>~/.config/ncrypted/wallet.key</code> and prints an
+        address to fund. Reading secrets is free and needs no wallet.
+      </p>
+      <h3>Claude Code</h3>
       <pre>{`/plugin marketplace add ${REPO}
 /plugin install ncrypted@ncrypted`}</pre>
-      <h3>Any MCP client</h3>
+      <h3>Codex</h3>
+      <pre>{`codex plugin marketplace add ${REPO}`}</pre>
+      <h3>Gemini CLI</h3>
+      <pre>{`gemini extensions install https://github.com/${REPO}`}</pre>
+      <h3>Any MCP client (local, zero-knowledge)</h3>
       <pre>{`{
   "mcpServers": {
-    "ncrypted": {
-      "command": "npx",
-      "args": ["-y", "@seidl-family/ncrypted-mcp"],
-      "env": { "NCRYPTED_WALLET_PRIVATE_KEY": "0x..." }
-    }
+    "ncrypted": { "command": "npx", "args": ["-y", "@seidl-family/ncrypted-mcp"] }
   }
 }`}</pre>
+      <h3>Hosted MCP</h3>
+      <p>
+        For clients that can&apos;t run local servers: <code>https://ncrypted.ai/mcp</code> (Streamable HTTP). Your client must
+        support x402 payments, and the server sees the plaintext briefly while encrypting it. Prefer the local server for
+        anything sensitive.
+      </p>
       <h3>Agent Skill</h3>
       <pre>{`npx skills add ${REPO}`}</pre>
       <h3>CLI and SDK</h3>
       <pre>{`echo "hunter2" | npx ncrypted create --ttl 1h --email ops@example.com
-npx ncrypted read "https://…/s/abc#key"
+npx ncrypted read "https://ncrypted.ai/s/abc#key"
 
 import { Ncrypted } from "ncrypted";
 const { link } = await new Ncrypted().create("hunter2", { ttl: 3600 });`}</pre>

@@ -18,6 +18,8 @@ interface Store {
   put(id: string, payload: EncryptedPayload, meta: Meta, ttl: number): Promise<void>;
   /** Atomically fetches and deletes the ciphertext. Only one caller can ever get it. */
   take(id: string): Promise<EncryptedPayload | null>;
+  /** Reads the ciphertext without consuming it. Only for verifying a passphrase before take(). */
+  peek(id: string): Promise<EncryptedPayload | null>;
   drop(id: string): Promise<boolean>;
   exists(id: string): Promise<boolean>;
   meta(id: string): Promise<Meta | null>;
@@ -38,6 +40,11 @@ function redisStore(redis: Redis): Store {
     },
     async take(id) {
       const v = await redis.getdel<EncryptedPayload | string>(`s:${id}`);
+      if (!v) return null;
+      return typeof v === "string" ? (JSON.parse(v) as EncryptedPayload) : v;
+    },
+    async peek(id) {
+      const v = await redis.get<EncryptedPayload | string>(`s:${id}`);
       if (!v) return null;
       return typeof v === "string" ? (JSON.parse(v) as EncryptedPayload) : v;
     },
@@ -78,6 +85,10 @@ function memoryStore(): Store {
     async take(id) {
       const e = live(id);
       db.s.delete(id);
+      return e ? (JSON.parse(e[0]) as EncryptedPayload) : null;
+    },
+    async peek(id) {
+      const e = live(id);
       return e ? (JSON.parse(e[0]) as EncryptedPayload) : null;
     },
     async drop(id) {

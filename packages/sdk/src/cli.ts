@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
+import { privateKeyToAccount } from "viem/accounts";
 import { Ncrypted } from "./client.js";
+import { createWallet, normalizeKey, readWalletKey, usdcBalance, walletPath } from "./wallet.js";
 
 const HELP = `ncrypted - one-time, end-to-end encrypted secrets for agents (0.005 USDC per secret, reads free)
 
@@ -10,8 +12,12 @@ Usage:
   ncrypted read <link> [--passphrase X]
   ncrypted status <id> --receipt <token>
   ncrypted burn <id> --receipt <token>
+  ncrypted wallet new           create a payer wallet at ~/.config/ncrypted/wallet.key
+  ncrypted wallet               show the payer address and its USDC balance on Base
 
-Env: NCRYPTED_WALLET_PRIVATE_KEY (Base wallet with USDC, needed for create), NCRYPTED_URL (optional)`;
+Creating a secret needs a Base wallet holding a little USDC (no ETH needed). The key is read from
+NCRYPTED_WALLET_PRIVATE_KEY, else NCRYPTED_WALLET_FILE, else ~/.config/ncrypted/wallet.key.
+NCRYPTED_URL overrides the API origin.`;
 
 function parseTtl(v?: string): number | undefined {
   if (!v) return undefined;
@@ -65,6 +71,22 @@ async function main() {
       await client.burn(arg, values.receipt);
       out({ burned: true });
       break;
+    case "wallet": {
+      if (arg === "new") {
+        const { address, path } = await createWallet().catch((e: NodeJS.ErrnoException) => {
+          if (e.code === "EEXIST") throw new Error(`A wallet already exists at ${walletPath()}`);
+          throw e;
+        });
+        out({ address, path, next: "Send a little USDC on Base to this address. Each secret costs 0.005 USDC; no ETH needed." });
+        break;
+      }
+      const key = normalizeKey(process.env.NCRYPTED_WALLET_PRIVATE_KEY) ?? (await readWalletKey());
+      if (!key) throw new Error("No wallet configured. Run `npx ncrypted wallet new`.");
+      const address = privateKeyToAccount(key).address;
+      const usdc = await usdcBalance(address);
+      out({ address, usdc, secretsAvailable: Math.floor(usdc / 0.005) });
+      break;
+    }
     default:
       console.log(HELP);
   }

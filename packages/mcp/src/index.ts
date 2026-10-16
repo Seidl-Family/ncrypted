@@ -2,10 +2,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { Ncrypted } from "ncrypted";
+import { privateKeyToAccount } from "viem/accounts";
+import { Ncrypted, usdcBalance, walletPath } from "ncrypted";
+import { normalizeKey, readWalletKey } from "ncrypted/wallet";
 
 const client = new Ncrypted();
-const server = new McpServer({ name: "ncrypted", version: "0.1.1" });
+const server = new McpServer({ name: "ncrypted", version: "0.1.2" });
 
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }] });
 const fail = (e: unknown) => ({ isError: true, ...text(`Error: ${(e as Error).message}`) });
@@ -96,6 +98,29 @@ server.registerTool(
     try {
       await client.burn(id, receiptToken);
       return text({ burned: true });
+    } catch (e) {
+      return fail(e);
+    }
+  },
+);
+
+server.registerTool(
+  "ncrypted_wallet",
+  {
+    title: "Show payer wallet",
+    description: "Show the address and USDC balance (Base) of the wallet that pays for new secrets, and how many secrets it can afford. Free.",
+    inputSchema: {},
+    annotations: { readOnlyHint: true },
+  },
+  async () => {
+    try {
+      const key = normalizeKey(process.env.NCRYPTED_WALLET_PRIVATE_KEY) ?? (await readWalletKey());
+      if (!key) {
+        return text({ configured: false, keyFile: walletPath(), fix: "Run `npx ncrypted wallet new` in a terminal, then send a little USDC on Base to the printed address." });
+      }
+      const address = privateKeyToAccount(key).address;
+      const usdc = await usdcBalance(address);
+      return text({ configured: true, address, usdc, secretsAvailable: Math.floor(usdc / 0.005) });
     } catch (e) {
       return fail(e);
     }

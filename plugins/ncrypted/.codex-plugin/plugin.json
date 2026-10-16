@@ -1,0 +1,22 @@
+{
+  "name": "ncrypted",
+  "version": "0.1.2",
+  "description": "One-time, end-to-end encrypted secrets for agents. Share passwords and API keys as self-destructing links, by link, email, or agent handoff. 0.005 USDC per secret via x402.",
+  "author": { "name": "Seidl Family", "url": "https://github.com/Seidl-Family" },
+  "homepage": "https://ncrypted.ai",
+  "repository": "https://github.com/Seidl-Family/ncrypted",
+  "license": "MIT",
+  "keywords": ["secrets", "security", "encryption", "one-time", "x402"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "ncrypted",
+    "shortDescription": "Share secrets as one-time, self-destructing encrypted links",
+    "longDescription": "Encrypt a password, API key or sensitive note locally and get a link that opens exactly once. Share it with a person, email it, or hand it to another agent. Creating a secret costs 0.005 USDC on Base via x402; reading is free.",
+    "developerName": "Seidl Family",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://ncrypted.ai",
+    "logo": "./assets/logo.svg"
+  }
+}

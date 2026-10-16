@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getStore } from "@/lib/store";
+import { burnSecret } from "@/lib/secrets";
 import { authorize, json, rateLimit } from "@/lib/http";
 
 /** Burns an unread secret. Creator only. */
@@ -9,7 +9,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params;
   const meta = await authorize(req, id);
   if (meta instanceof Response) return meta;
-  const store = getStore();
-  if (await store.drop(id)) await store.updateMeta(id, { status: "burned" });
+  await burnSecret(id);
   return json({ burned: true });
 }

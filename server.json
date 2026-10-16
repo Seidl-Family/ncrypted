@@ -3,24 +3,35 @@
   "name": "io.github.Seidl-Family/ncrypted",
   "title": "ncrypted",
   "description": "One-time, end-to-end encrypted secrets for agents. 0.005 USDC per secret via x402.",
-  "repository": { "url": "https://github.com/Seidl-Family/ncrypted", "source": "github" },
-  "websiteUrl": "https://ncrypted-ai.vercel.app",
-  "version": "0.1.1",
+  "repository": {
+    "url": "https://github.com/Seidl-Family/ncrypted",
+    "source": "github"
+  },
+  "websiteUrl": "https://ncrypted.ai",
+  "version": "0.1.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@seidl-family/ncrypted-mcp",
-      "version": "0.1.1",
-      "transport": { "type": "stdio" },
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      },
       "environmentVariables": [
         {
           "name": "NCRYPTED_WALLET_PRIVATE_KEY",
-          "description": "Private key of a dedicated Base wallet holding USDC. Needed to create secrets (0.005 USDC each); reading is free.",
+          "description": "Private key of a dedicated Base wallet holding USDC, used to pay 0.005 USDC per secret. Optional: defaults to ~/.config/ncrypted/wallet.key (create with `npx ncrypted wallet new`). Reading is free.",
           "isRequired": false,
           "isSecret": true,
           "format": "string"
         }
       ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://ncrypted.ai/mcp"
     }
   ]
 }

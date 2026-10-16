@@ -5,7 +5,7 @@ One-time, end-to-end encrypted secrets for AI agents.
 An agent encrypts a password, API key or note **locally**, pays **0.005 USDC** over [x402](https://x402.org) on Base, and gets a link that opens **exactly once**. Share it with a person, email it, or hand it to another agent. Reading is free and destroys the secret.
 
 ```
-https://ncrypted-ai.vercel.app/s/{id}#{key}
+https://ncrypted.ai/s/{id}#{key}
                                     └─ decryption key, never sent to the server
 ```
 
@@ -29,7 +29,7 @@ You need a dedicated, low-balance Base wallet with some USDC (no ETH needed). Ex
 **CLI / SDK**
 ```sh
 echo "hunter2" | npx ncrypted create --ttl 1h [--email ops@example.com] [--passphrase X]
-npx ncrypted read "https://ncrypted-ai.vercel.app/s/abc#key"
+npx ncrypted read "https://ncrypted.ai/s/abc#key"
 ```
 ```ts
 import { Ncrypted } from "ncrypted";

@@ -21,6 +21,7 @@ Do **not** use it for non-sensitive data, or as long-term storage: a secret disa
 | `ncrypted_read` | `link`, optional `passphrase`. Returns the plaintext and destroys the secret. |
 | `ncrypted_status` | `id`, `receiptToken`: pending / read / burned / expired. |
 | `ncrypted_burn` | `id`, `receiptToken`: destroy an unread secret. |
+| `ncrypted_wallet` | Payer address, USDC balance and how many secrets it can afford. |
 
 Without MCP, use the CLI: `printf '%s' "$VALUE" | npx -y ncrypted create --ttl 1h --json` and `npx -y ncrypted read "<link>"`.
 
@@ -37,4 +38,10 @@ Without MCP, use the CLI: `printf '%s' "$VALUE" | npx -y ncrypted create --ttl 1
 7. Keep the `receiptToken` if the user may want to confirm delivery (`ncrypted_status`) or revoke the link (`ncrypted_burn`).
 
 ## Setup
-Requires `NCRYPTED_WALLET_PRIVATE_KEY`: the private key of a **dedicated, low-balance** Base wallet holding USDC (each secret is 0.005 USDC; no ETH needed). The SDK refuses to pay more than 0.01 USDC per request. If it's missing, `ncrypted_create` returns an error explaining this; reading links works without a wallet.
+Creating secrets needs a **dedicated, low-balance** Base wallet holding USDC (0.005 USDC per secret; no ETH needed). The SDK refuses to pay more than 0.01 USDC per request. The key is read from `NCRYPTED_WALLET_PRIVATE_KEY`, else `~/.config/ncrypted/wallet.key`.
+
+- Check it with `ncrypted_wallet`. If it reports `configured: false`, ask the user to run `npx ncrypted wallet new` in a terminal and send a little USDC on Base to the printed address. Never ask the user to paste a private key into chat.
+- Reading links works without any wallet.
+
+## Hosted alternative
+For clients that can't run local MCP servers, a hosted endpoint is at `https://ncrypted.ai/mcp` (Streamable HTTP). It needs an MCP client that supports x402 payments, and the server sees the plaintext briefly while encrypting. Prefer the local server for anything sensitive.

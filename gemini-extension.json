@@ -1,0 +1,20 @@
+{
+  "name": "ncrypted",
+  "version": "0.1.2",
+  "description": "One-time, end-to-end encrypted secrets for agents. Share passwords and API keys as self-destructing links. 0.005 USDC per secret via x402.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "ncrypted": {
+      "command": "npx",
+      "args": ["-y", "@seidl-family/ncrypted-mcp@latest"]
+    }
+  },
+  "settings": [
+    {
+      "name": "Wallet private key (optional)",
+      "description": "Private key of a dedicated Base wallet holding USDC, used to pay 0.005 USDC per secret. Leave empty to use ~/.config/ncrypted/wallet.key (create it with `npx ncrypted wallet new`). Reading secrets is free.",
+      "envVar": "NCRYPTED_WALLET_PRIVATE_KEY",
+      "sensitive": true
+    }
+  ]
+}

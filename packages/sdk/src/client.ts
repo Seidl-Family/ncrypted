@@ -2,15 +2,19 @@ import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x4
 import { ExactEvmScheme } from "@x402/evm";
 import { privateKeyToAccount } from "viem/accounts";
 import { encrypt, decrypt, parseLink, type EncryptedPayload } from "./crypto.js";
+import { normalizeKey, readWalletKey, walletPath } from "./wallet.js";
 
-export const DEFAULT_BASE_URL = "https://ncrypted-ai.vercel.app";
+export const DEFAULT_BASE_URL = "https://ncrypted.ai";
 /** Hard cap on what the SDK will ever pay for one secret, whatever the server asks. */
 export const MAX_PRICE = "$0.01";
 
 export interface NcryptedOptions {
   /** API origin. Defaults to NCRYPTED_URL or the hosted service. */
   baseUrl?: string;
-  /** 0x-prefixed EVM private key of a wallet holding USDC on Base. Defaults to NCRYPTED_WALLET_PRIVATE_KEY. */
+  /**
+   * 0x-prefixed EVM private key of a wallet holding USDC on Base. Defaults to NCRYPTED_WALLET_PRIVATE_KEY,
+   * then the key file at NCRYPTED_WALLET_FILE or ~/.config/ncrypted/wallet.key (create one with `npx ncrypted wallet new`).
+   */
   privateKey?: string;
   /** Bring your own x402-paying fetch instead of a private key. */
   paymentFetch?: typeof fetch;
@@ -77,33 +81,45 @@ const SETTLE_ATTEMPTS = 3;
 
 export class Ncrypted {
   readonly baseUrl: string;
-  private payFetch?: typeof fetch;
+  private payFetch?: Promise<typeof fetch | undefined>;
 
-  constructor(opts: NcryptedOptions = {}) {
+  constructor(private readonly opts: NcryptedOptions = {}) {
     const env = typeof process !== "undefined" ? process.env : {};
     this.baseUrl = (opts.baseUrl ?? env.NCRYPTED_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
-    const pk = opts.privateKey ?? env.NCRYPTED_WALLET_PRIVATE_KEY;
-    if (opts.paymentFetch) this.payFetch = opts.paymentFetch;
-    else if (pk) {
-      const account = privateKeyToAccount((pk.startsWith("0x") ? pk : `0x${pk}`) as `0x${string}`);
-      this.payFetch = wrapFetchWithPaymentFromConfig(fetch, {
-        schemes: [{ network: "eip155:*", client: new ExactEvmScheme(account) }],
+  }
+
+  /** Resolves the paying fetch lazily, so a missing or bad wallet only affects create(), never reads. */
+  private payer(): Promise<typeof fetch | undefined> {
+    return (this.payFetch ??= (async () => {
+      if (this.opts.paymentFetch) return this.opts.paymentFetch;
+      const env = typeof process !== "undefined" ? process.env : {};
+      const pk = normalizeKey(this.opts.privateKey ?? env.NCRYPTED_WALLET_PRIVATE_KEY) ?? (await readWalletKey());
+      if (!pk) return undefined;
+      return wrapFetchWithPaymentFromConfig(fetch, {
+        schemes: [{ network: "eip155:*", client: new ExactEvmScheme(privateKeyToAccount(pk)) }],
         spendControls: { maxAmountPerPayment: MAX_PRICE },
       });
-    }
+    })().catch((e) => {
+      this.payFetch = undefined;
+      throw e;
+    }));
   }
 
   /** Encrypts locally, pays 0.005 USDC via x402, stores the ciphertext and returns a one-time link. */
   async create(secret: string, opts: CreateOptions = {}): Promise<CreatedSecret> {
-    if (!this.payFetch) {
-      throw new Error("No wallet configured. Set NCRYPTED_WALLET_PRIVATE_KEY (a Base wallet with USDC) or pass privateKey.");
+    const payFetch = await this.payer();
+    if (!payFetch) {
+      throw new Error(
+        `No wallet configured. Run \`npx ncrypted wallet new\` to create one at ${walletPath()} and send it a little USDC on Base, ` +
+          "or set NCRYPTED_WALLET_PRIVATE_KEY.",
+      );
     }
     const { payload, key } = await encrypt(secret, opts.passphrase);
     const body: Record<string, unknown> = { ...payload, ttl: opts.ttl ?? 86400 };
     // The link is only knowable after the server assigns an id, so email goes in a second, free call.
     let res: Response;
     for (let attempt = 1; ; attempt++) {
-      res = await this.payFetch(`${this.baseUrl}/api/v1/secrets`, {
+      res = await payFetch(`${this.baseUrl}/api/v1/secrets`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),

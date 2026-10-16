@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { getStore, type Meta } from "./store";
+import type { Meta } from "./store";
+import { metaForReceipt } from "./secrets";
 
 export const ID_RE = /^[A-Za-z0-9_-]{22}$/;
 
@@ -17,21 +18,12 @@ export async function sha256(s: string): Promise<string> {
   return Array.from(d, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let r = 0;
-  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return r === 0;
-}
-
 /** Loads a secret's metadata and checks the creator's bearer receipt token. Returns a Response on failure. */
 export async function authorize(req: NextRequest, id: string): Promise<Meta | NextResponse> {
   if (!ID_RE.test(id)) return error("Not found", 404);
   const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return error("Missing receipt token", 401);
-  const meta = await getStore().meta(id);
-  if (!meta || !timingSafeEqual(meta.rt, await sha256(token))) return error("Not found", 404);
-  return meta;
+  return (await metaForReceipt(id, token)) ?? error("Not found", 404);
 }
 
 let limiter: Ratelimit | null | undefined;
