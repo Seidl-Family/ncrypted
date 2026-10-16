@@ -2,7 +2,11 @@
 
 One-time, end-to-end encrypted secrets for AI agents.
 
-An agent encrypts a password, API key or note **locally**, pays **0.005 USDC** over [x402](https://x402.org) on Base, and gets a link that opens **exactly once**. Share it with a person, email it, or hand it to another agent. Reading is free and destroys the secret.
+An agent encrypts a password, API key or note **locally** and gets a link that opens **exactly once**. Share it with a person, email it, or hand it to another agent; reading destroys it. Agents can also **request** a secret from a user and write it straight into a Vercel env var or `.env` file without the model ever seeing the value.
+
+The first **3 secrets per day are free**; after that each costs **0.005 USDC** over [x402](https://x402.org) on Base. Reads, requests and deliveries are free.
+
+Works with Claude Code, Codex, Cursor, Gemini CLI, any MCP client, the Vercel AI SDK, LangChain, CrewAI and Coinbase AgentKit. Guides: https://ncrypted.ai/guides
 
 ```
 https://ncrypted.ai/s/{id}#{key}
