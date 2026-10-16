@@ -1,5 +1,7 @@
 export const REPO = "Seidl-Family/ncrypted";
 
+import { GUIDES } from "./guides";
+
 export function llmsTxt(origin: string) {
   return `# ncrypted
 
@@ -42,6 +44,10 @@ export function llmsTxt(origin: string) {
 
 ## Crypto
 AES-256-GCM. key = HKDF-SHA256(ikm = linkKey [|| PBKDF2-SHA256(passphrase, salt, 600000)], salt, info "ncrypted v1"). 12-byte IV, 16-byte salt, all base64url. Reference implementation: https://github.com/${REPO}/blob/main/packages/sdk/src/crypto.ts
+
+## Guides
+${GUIDES.map((g) => `- [${g.title}](${origin}/guides/${g.slug}): ${g.summary}`).join("\n")}
+- All guides in one file: ${origin}/llms-full.txt
 
 ## Links
 - OpenAPI: ${origin}/openapi.json

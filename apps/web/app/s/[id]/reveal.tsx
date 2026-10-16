@@ -95,6 +95,9 @@ export default function Reveal({ id }: { id: string }) {
             {copied ? "Copied" : "Copy"}
           </button>
           <p>This secret has been destroyed on the server. Reloading this page won't bring it back.</p>
+          <p>
+            Shared with <a href="/">ncrypted</a>: one-time secrets for AI agents.
+          </p>
         </>
       );
     case "gone":

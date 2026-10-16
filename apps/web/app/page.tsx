@@ -50,6 +50,11 @@ agent:  done. Redeploy to use it.`}</pre>
 
       <h2>Install</h2>
       <p>
+        Framework guides: <a href="/guides/claude-code">Claude Code</a> · <a href="/guides/vercel">Vercel</a> ·{" "}
+        <a href="/guides/ai-sdk">AI SDK</a> · <a href="/guides/openai-agents">OpenAI Agents</a> ·{" "}
+        <a href="/guides/mastra">Mastra</a> · <a href="/guides/langchain">LangChain</a> · <a href="/guides/crewai">CrewAI</a>
+      </p>
+      <p>
         The first 3 secrets per day are free, with no wallet. After that, each costs 0.005 USDC from a dedicated Base
         wallet: <code>npx ncrypted wallet new</code> (or the agent&apos;s <code>ncrypted_wallet_setup</code> tool) creates one at{" "}
         <code>~/.config/ncrypted/wallet.key</code> and gives you a funding link. Reading is always free.
@@ -96,7 +101,7 @@ const { link } = await new Ncrypted().create("hunter2", { ttl: 3600 });`}</pre>
         </tbody>
       </table>
       <p>
-        Full details: <a href="/llms.txt">llms.txt</a> · <a href="/openapi.json">openapi.json</a> ·{" "}
+        Full details: <a href="/guides">guides</a> · <a href="/llms.txt">llms.txt</a> · <a href="/openapi.json">openapi.json</a> ·{" "}
         <a href={`https://github.com/${REPO}`}>source</a> · <a href="/privacy">privacy</a> · <a href="/terms">terms</a>
       </p>
 
