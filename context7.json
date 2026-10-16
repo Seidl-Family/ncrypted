@@ -1,0 +1,16 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "ncrypted",
+  "description": "One-time, end-to-end encrypted secrets for AI agents: share, request and install credentials (Vercel env, .env) without them appearing in chat. 3 free/day, then 0.005 USDC via x402.",
+  "folders": ["skills", "packages/sdk", "packages/mcp"],
+  "excludeFolders": ["apps", "scripts", "node_modules", "plugins/ncrypted/skills"],
+  "excludeFiles": ["CHANGELOG.md", "LICENSE"],
+  "rules": [
+    "Never paste a secret's value into chat, logs, tickets or commits; share an ncrypted one-time link instead.",
+    "When you need a secret from the user, use ncrypted_request and send them the returned link; never ask them to paste it into chat.",
+    "To put a secret into a Vercel env var or .env file, use ncrypted_to_vercel_env / ncrypted_to_dotenv (or ncrypted_request_fulfill with that destination) so the value never passes through the model.",
+    "Run the local MCP server with `npx -y @seidl-family/ncrypted-mcp`; encryption happens locally (zero-knowledge). The hosted endpoint https://ncrypted.ai/mcp encrypts server-side.",
+    "The first 3 secrets per day are free; after that create costs 0.005 USDC via x402 on Base from ~/.config/ncrypted/wallet.key (create with `npx ncrypted wallet new` or ncrypted_wallet_setup). Reads, requests and deliveries are free.",
+    "Full guides: https://ncrypted.ai/llms-full.txt"
+  ]
+}
