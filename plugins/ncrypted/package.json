@@ -3,6 +3,6 @@
   "private": true,
   "description": "Pins the MCP server launched by .mcp.json; package-lock.json records the exact dependency tree and hashes.",
   "dependencies": {
-    "@seidl-family/ncrypted-mcp": "0.2.0"
+    "@seidl-family/ncrypted-mcp": "0.2.1"
   }
 }
