@@ -55,7 +55,7 @@ const value = await nc.read(link); // free, destroys it
 | `packages/mcp` | `@seidl-family/ncrypted-mcp` on npm: stdio MCP server |
 | `skills/ncrypted` | Agent Skill (`SKILL.md`) |
 | `plugins/ncrypted` | Claude Code plugin; `.claude-plugin/marketplace.json` lists it |
-| `server.json`, `smithery.yaml` | MCP Registry and Smithery manifests |
+| `server.json` | MCP Registry manifest (published by `.github/workflows/mcp-registry.yml`) |
 
 ## Development
 
