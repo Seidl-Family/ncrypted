@@ -5,12 +5,12 @@
   "description": "One-time, end-to-end encrypted secrets for agents. 0.005 USDC per secret via x402.",
   "repository": { "url": "https://github.com/Seidl-Family/ncrypted", "source": "github" },
   "websiteUrl": "https://ncrypted-ai.vercel.app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@ncrypted/mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Ncrypted } from "ncrypted";
 
 const client = new Ncrypted();
-const server = new McpServer({ name: "ncrypted", version: "0.1.0" });
+const server = new McpServer({ name: "ncrypted", version: "0.1.1" });
 
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }] });
 const fail = (e: unknown) => ({ isError: true, ...text(`Error: ${(e as Error).message}`) });
