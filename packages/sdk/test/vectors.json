@@ -1,0 +1,25 @@
+{
+  "plain": {
+    "payload": {
+      "v": 1,
+      "ciphertext": "kFNZu_BU9xM8m4GRK53jA6hOmF8Mq1c2CnYrGj136ZsuyzONTJTH9TXkWk6vk8k4rBjRJIMY",
+      "iv": "33Fjq7lxFUmXuM71",
+      "salt": "UkaVCia8qWbeIx5SK9D2qA",
+      "hasPassphrase": false
+    },
+    "key": "zgICISoCRbSa-mGci1-Z60-iHJ_hARrs9Z57P-gmKfw",
+    "plaintext": "agentkit test vector: sk_test_FAKE_123"
+  },
+  "pass": {
+    "payload": {
+      "v": 1,
+      "ciphertext": "SzsQtDqSGl8uDosTVv3qsGaIVDwmIqWzjYGAuWhA7g",
+      "iv": "zVZKw7Yh833hlcna",
+      "salt": "4_I2rdk0o2txmTwCPBXoVQ",
+      "hasPassphrase": true
+    },
+    "key": "3ohmNT_mSf8G_XJUR7Um3SYiaRAw5TASgqgef4NxPuc",
+    "passphrase": "correct horse",
+    "plaintext": "with passphrase"
+  }
+}

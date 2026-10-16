@@ -1,0 +1,43 @@
+# Publishes packages/python to PyPI with trusted publishing (OIDC, no stored token).
+# One-time setup on pypi.org: add a pending publisher for project "ncrypted", owner Seidl-Family,
+# repository ncrypted, workflow publish-pypi.yml, environment pypi.
+name: Publish Python package to PyPI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test
+        working-directory: packages/python
+        run: |
+          pip install -e ".[dev]"
+          pytest -q
+      - name: Build
+        working-directory: packages/python
+        run: |
+          pip install build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: packages/python/dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

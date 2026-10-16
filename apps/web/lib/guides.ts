@@ -165,9 +165,17 @@ export const opsAgent = new Agent({
   },
   {
     slug: "langchain",
-    title: "LangChain (JS)",
-    summary: "Use ncrypted as LangChain tools through the MCP adapters.",
+    title: "LangChain",
+    summary: "ncrypted as LangChain tools, in Python or JS.",
     sections: [
+      { heading: "python", code: `pip install "ncrypted[langchain]"   # add [pay] to pay beyond the free tier` },
+      {
+        code: `from ncrypted.langchain import ncrypted_tools
+
+tools = ncrypted_tools()  # ncrypted_create, ncrypted_read, ncrypted_status, ncrypted_burn (sync + async)
+# pass to create_agent / bind_tools as usual`,
+      },
+      { heading: "javascript (via MCP)" },
       { code: "npm install @langchain/mcp-adapters" },
       {
         code: `import { MultiServerMCPClient } from "@langchain/mcp-adapters";
@@ -202,7 +210,7 @@ ops = Agent(
     mcps=[MCPServerStdio(command="npx", args=${MCP_ARGS})],
 )`,
       },
-      { text: "Needs Node.js for npx. A native Python SDK is on the way." },
+      { text: "The MCP server needs Node.js (npx). For a pure-Python setup, use the ncrypted package: `pip install \"ncrypted[pay]\"`, then `from ncrypted import NcryptedSync` inside your own CrewAI tool." },
       { heading: "pricing", text: PRICING },
     ],
   },

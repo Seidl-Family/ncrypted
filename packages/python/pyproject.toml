@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ncrypted"
+version = "0.1.0"
+description = "One-time, end-to-end encrypted secrets for AI agents. 3 free per day, then 0.005 USDC per secret via x402."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Seidl Family" }]
+keywords = ["secrets", "one-time", "encryption", "agents", "x402", "langchain", "crewai", "mcp"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Security :: Cryptography",
+  "Intended Audience :: Developers",
+]
+dependencies = ["cryptography>=42", "httpx>=0.27"]
+
+[project.optional-dependencies]
+pay = ["x402[evm,httpx]>=2.25", "eth-account>=0.13"]
+langchain = ["langchain-core>=0.3"]
+all = ["ncrypted[pay,langchain]"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ncrypted[all]"]
+
+[project.urls]
+Homepage = "https://ncrypted.ai"
+Documentation = "https://ncrypted.ai/guides"
+Source = "https://github.com/Seidl-Family/ncrypted"
+Issues = "https://github.com/Seidl-Family/ncrypted/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ncrypted"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -6,3 +6,7 @@ dist
 !.env.example
 *.tsbuildinfo
 evals/results/
+.venv/
+__pycache__/
+*.egg-info/
+packages/python/dist/
