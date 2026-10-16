@@ -1,0 +1,18 @@
+{
+  "name": "ncrypted-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/sdk",
+    "packages/mcp",
+    "apps/web"
+  ],
+  "scripts": {
+    "build": "npm run build -w ncrypted && npm run build -w @ncrypted/mcp && npm run build -w web",
+    "test": "npm test -w ncrypted",
+    "dev": "npm run dev -w web",
+    "e2e": "node --env-file=.env.e2e --experimental-strip-types scripts/e2e.ts",
+    "sync:skill": "cp skills/ncrypted/SKILL.md plugins/ncrypted/skills/ncrypted/SKILL.md",
+    "check:skill": "cmp skills/ncrypted/SKILL.md plugins/ncrypted/skills/ncrypted/SKILL.md"
+  }
+}

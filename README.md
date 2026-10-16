@@ -1,0 +1,70 @@
+# ncrypted
+
+One-time, end-to-end encrypted secrets for AI agents.
+
+An agent encrypts a password, API key or note **locally**, pays **0.005 USDC** over [x402](https://x402.org) on Base, and gets a link that opens **exactly once**. Share it with a person, email it, or hand it to another agent. Reading is free and destroys the secret.
+
+```
+https://ncrypted.vercel.app/s/{id}#{key}
+                                    └─ decryption key, never sent to the server
+```
+
+## Install
+
+You need a dedicated, low-balance Base wallet with some USDC (no ETH needed). Export its key as `NCRYPTED_WALLET_PRIVATE_KEY`.
+
+**Claude Code**
+```
+/plugin marketplace add Seidl-Family/ncrypted
+/plugin install ncrypted@ncrypted
+```
+
+**Any MCP client** (Claude Desktop, Cursor, Codex, …)
+```json
+{ "mcpServers": { "ncrypted": { "command": "npx", "args": ["-y", "@ncrypted/mcp"], "env": { "NCRYPTED_WALLET_PRIVATE_KEY": "0x..." } } } }
+```
+
+**Agent Skill**: `npx skills add Seidl-Family/ncrypted`
+
+**CLI / SDK**
+```sh
+echo "hunter2" | npx ncrypted create --ttl 1h [--email ops@example.com] [--passphrase X]
+npx ncrypted read "https://ncrypted.vercel.app/s/abc#key"
+```
+```ts
+import { Ncrypted } from "ncrypted";
+const nc = new Ncrypted(); // reads NCRYPTED_WALLET_PRIVATE_KEY
+const { link, receiptToken, id } = await nc.create("hunter2", { ttl: 3600 });
+const value = await nc.read(link); // free, destroys it
+```
+
+## How it works
+
+- **Zero-knowledge**: AES-256-GCM with a random 256-bit key, derived via HKDF (plus PBKDF2 if you set a passphrase). The server stores ciphertext only.
+- **Exactly once**: reads use Redis `GETDEL`, so concurrent readers can't both get it. Unread secrets expire after their TTL (5 min to 7 days).
+- **Preview-safe**: opening the web page doesn't consume the secret; the recipient has to click *Reveal*.
+- **Pay per secret**: x402 `exact` scheme, USDC on Base, settled only after the secret is stored. The SDK refuses to pay more than $0.01 per request.
+- **Email**: the creator can email the link once. It passes through the server for that request and isn't stored. Use a passphrase for very sensitive values.
+
+## Repo layout
+
+| Path | What |
+|---|---|
+| `apps/web` | Next.js app on Vercel: API, viewer page, llms.txt, openapi.json |
+| `packages/sdk` | `ncrypted` on npm: crypto, client, CLI |
+| `packages/mcp` | `@ncrypted/mcp` on npm: stdio MCP server |
+| `skills/ncrypted` | Agent Skill (`SKILL.md`) |
+| `plugins/ncrypted` | Claude Code plugin; `.claude-plugin/marketplace.json` lists it |
+| `server.json`, `smithery.yaml` | MCP Registry and Smithery manifests |
+
+## Development
+
+```sh
+npm install
+npm test                       # crypto unit tests
+cp apps/web/.env.example apps/web/.env.local   # set NCRYPTED_PAY_TO
+npm run dev                    # in-memory store when Redis isn't configured
+npm run build && npm run e2e   # needs .env.e2e with a funded Base Sepolia wallet
+```
+
+After editing `skills/ncrypted/SKILL.md`, run `npm run sync:skill`.

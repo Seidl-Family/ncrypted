@@ -1,0 +1,17 @@
+# Smithery: stdio MCP server published to npm as @ncrypted/mcp
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      walletPrivateKey:
+        type: string
+        description: Private key of a dedicated Base wallet holding USDC. Needed to create secrets (0.005 USDC each). Reading is free.
+  commandFunction: |-
+    (config) => ({
+      command: "npx",
+      args: ["-y", "@ncrypted/mcp@latest"],
+      env: config.walletPrivateKey ? { NCRYPTED_WALLET_PRIVATE_KEY: config.walletPrivateKey } : {}
+    })
+  exampleConfig:
+    walletPrivateKey: "0x..."

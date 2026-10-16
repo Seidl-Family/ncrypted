@@ -1,0 +1,62 @@
+{
+  "name": "ncrypted",
+  "version": "0.1.0",
+  "description": "One-time, end-to-end encrypted secrets for AI agents. Pay 0.005 USDC per secret via x402; the note self-destructs after one read.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./crypto": {
+      "types": "./dist/crypto.d.ts",
+      "default": "./dist/crypto.js"
+    }
+  },
+  "bin": {
+    "ncrypted": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "secrets",
+    "one-time",
+    "x402",
+    "agents",
+    "mcp",
+    "encryption",
+    "usdc"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@x402/evm": "^2.28.0",
+    "@x402/fetch": "^2.28.0",
+    "viem": "^2.57.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Seidl-Family/ncrypted.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/Seidl-Family/ncrypted",
+  "publishConfig": {
+    "access": "public"
+  }
+}
