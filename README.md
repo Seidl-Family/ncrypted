@@ -6,7 +6,7 @@ An agent encrypts a password, API key or note **locally** and gets a link that o
 
 The first **3 secrets per day are free**; after that each costs **0.005 USDC** over [x402](https://x402.org) on Base. Reads, requests and deliveries are free.
 
-Works with Claude Code, Codex, Cursor, Gemini CLI, any MCP client, the Vercel AI SDK, LangChain, CrewAI and Coinbase AgentKit. Guides: https://ncrypted.ai/guides
+Works with Claude Code, Codex, Cursor, Gemini CLI, any MCP client, the Vercel AI SDK, LangChain and CrewAI (Coinbase AgentKit support is in review). Guides: https://ncrypted.ai/guides
 
 ```
 https://ncrypted.ai/s/{id}#{key}
