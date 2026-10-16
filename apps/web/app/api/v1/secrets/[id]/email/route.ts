@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { z } from "zod";
 import { getStore } from "@/lib/store";
 import { authorize, json, error, publicOrigin, rateLimit } from "@/lib/http";
+import { clientName, track } from "@/lib/usage";
 
 const Body = z.object({
   to: z.email(),
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const meta = await authorize(req, id);
   if (meta instanceof Response) return meta;
 
+  if (meta.free) return error("Email delivery is only available for paid secrets (not the free tier)", 402);
   if (!process.env.RESEND_API_KEY) return error("Email delivery is not enabled on this server", 503);
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return error("Invalid request: expected {to, link, note?}", 400);
@@ -51,5 +53,6 @@ ${note ? `<p style="padding:12px;background:#f4f4f5;border-radius:8px">${esc(not
   });
   if (sendError) return error(`Email failed: ${sendError.message}`, 502);
   await store.updateMeta(id, { emailed: true });
+  await track("emailed", clientName(req));
   return json({ emailed: true });
 }

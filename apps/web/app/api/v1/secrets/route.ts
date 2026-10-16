@@ -5,6 +5,7 @@ import { z } from "zod";
 import { resourceServer, NETWORK, PRICE, PAY_TO } from "@/lib/x402";
 import { storeSecret } from "@/lib/secrets";
 import { json, error, publicOrigin } from "@/lib/http";
+import { claimFree, clientIp, clientName, freeRemaining, track, FREE_MAX_TTL, FREE_PER_DAY } from "@/lib/usage";
 
 const b64url = (max: number) => z.string().regex(/^[A-Za-z0-9_-]+$/).max(max);
 
@@ -26,21 +27,29 @@ const exampleInput = {
   ttl: 86400,
 };
 
-async function handler(req: NextRequest) {
-  if (!PAY_TO) return error("Service is not configured", 503);
-  let parsed;
+async function parse(req: NextRequest) {
+  let raw;
   try {
-    parsed = Body.safeParse(await req.json());
+    raw = await req.json();
   } catch {
-    return error("Body must be JSON", 400);
+    return { err: error("Body must be JSON", 400) };
   }
-  if (!parsed.success) return error(`Invalid request: ${parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`, 400);
-  const { ttl, ...payload } = parsed.data;
-
-  return json(await storeSecret(payload, ttl, publicOrigin(req)), 201);
+  const parsed = Body.safeParse(raw);
+  if (!parsed.success) return { err: error(`Invalid request: ${parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`, 400) };
+  return { data: parsed.data };
 }
 
-export const POST = withX402(
+async function handler(req: NextRequest) {
+  if (!PAY_TO) return error("Service is not configured", 503);
+  const { data, err } = await parse(req);
+  if (err) return err;
+  const { ttl, ...payload } = data;
+  const rec = await storeSecret(payload, ttl, publicOrigin(req));
+  await track("created_paid", clientName(req));
+  return json(rec, 201);
+}
+
+const paid = withX402(
   handler,
   {
     "/api/v1/secrets": {
@@ -73,3 +82,31 @@ export const POST = withX402(
   },
   resourceServer,
 );
+
+/**
+ * Free tier: requests without a payment get FREE_PER_DAY secrets per IP per day (max 24h TTL, no email).
+ * Everything else, including requests once the quota is used, goes through x402.
+ */
+export async function POST(req: NextRequest) {
+  if (!PAY_TO) return error("Service is not configured", 503);
+  const paying = req.headers.has("payment-signature") || req.headers.has("x-payment");
+  // Clients that need a paid secret (e.g. for email delivery) opt out of the free tier.
+  if (!paying && !req.headers.has("x-ncrypted-no-free")) {
+    const { data, err } = await parse(req.clone() as NextRequest);
+    if (err) return err;
+    const ip = clientIp(req);
+    if (data.ttl <= FREE_MAX_TTL && (await claimFree(ip))) {
+      const { ttl, ...payload } = data;
+      const rec = await storeSecret(payload, ttl, publicOrigin(req), true);
+      await track("created_free", clientName(req));
+      return json({ ...rec, free: true, freeRemaining: await freeRemaining(ip) }, 201);
+    }
+  }
+  const res = await paid(req);
+  if (res.status === 402) {
+    res.headers.set("x-ncrypted-free-per-day", String(FREE_PER_DAY));
+    res.headers.set("x-ncrypted-free-max-ttl", String(FREE_MAX_TTL));
+    res.headers.set("x-ncrypted-free-remaining", String(paying ? 0 : await freeRemaining(clientIp(req))));
+  }
+  return res;
+}

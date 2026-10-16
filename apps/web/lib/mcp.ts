@@ -5,6 +5,7 @@ import { z } from "zod";
 import { encrypt, decrypt, parseLink } from "ncrypted/crypto";
 import { resourceServer, NETWORK, PRICE, PAY_TO } from "./x402";
 import { storeSecret, takeSecret, peekSecret, statusOf, burnSecret, metaForReceipt, GONE } from "./secrets";
+import { claimFree, freeRemaining, track, FREE_MAX_TTL, FREE_PER_DAY } from "./usage";
 
 const HOSTED_NOTE =
   "Hosted mode: this server encrypts the secret for you, so it sees the plaintext briefly over TLS (never stored or logged). " +
@@ -55,31 +56,49 @@ function getPaid() {
 }
 
 /** Builds a fresh MCP server bound to this deployment's public origin. One per request (stateless). */
-export async function buildMcpServer(origin: string): Promise<McpServer> {
-  const server = new McpServer({ name: "ncrypted", version: "0.1.1" });
+export interface McpCaller {
+  ip: string;
+  client: string;
+}
+
+/** Builds a fresh MCP server bound to this deployment's public origin. One per request (stateless). */
+export async function buildMcpServer(origin: string, caller: McpCaller): Promise<McpServer> {
+  const server = new McpServer({ name: "ncrypted", version: "0.1.2" });
   const paid = await getPaid();
+
+  const create = async (args: Record<string, unknown>, free: boolean) => {
+    const { secret, ttl_seconds, passphrase } = args as { secret: string; ttl_seconds?: number; passphrase?: string };
+    const { payload, key } = await encrypt(secret, passphrase);
+    const rec = await storeSecret(payload, ttl_seconds ?? 86400, origin, free);
+    await track(free ? "created_free" : "created_paid", caller.client);
+    return text({
+      link: `${rec.url}#${key}`,
+      id: rec.id,
+      expiresAt: rec.expiresAt,
+      receiptToken: rec.receiptToken,
+      ...(free ? { free: true, freeRemaining: await freeRemaining(caller.ip) } : {}),
+      note: "The link can be opened once. Keep receiptToken to check status or burn it.",
+    });
+  };
+  const paidCreate = paid((args) => create(args, false));
 
   server.registerTool(
     "ncrypted_create",
     {
       title: "Create one-time secret",
       description:
-        `Store a password, API key or sensitive note as a one-time link that self-destructs after a single read. Costs ${PRICE.replace("$", "")} USDC, ` +
-        "paid via x402 on Base (your MCP client must support x402 payments). Share the link with a person or another agent; never echo the secret in chat. " +
+        "Store a password, API key or sensitive note as a one-time link that self-destructs after a single read. " +
+        `The first ${FREE_PER_DAY} per day are free (TTL up to 24h); after that each costs ${PRICE.replace("$", "")} USDC, paid via x402 on Base (your MCP client must support x402). ` +
+        "Share the link with a person or another agent; never echo the secret in chat. " +
         HOSTED_NOTE,
       inputSchema: createInput,
     },
-    paid(async (args) => {
-      const { secret, ttl_seconds, passphrase } = args as { secret: string; ttl_seconds?: number; passphrase?: string };
-      const { payload, key } = await encrypt(secret, passphrase);
-      const rec = await storeSecret(payload, ttl_seconds ?? 86400, origin);
-      return text({
-        link: `${rec.url}#${key}`,
-        id: rec.id,
-        expiresAt: rec.expiresAt,
-        receiptToken: rec.receiptToken,
-        note: "The link can be opened once. Keep receiptToken to check status or burn it.",
-      });
+    (async (args: Record<string, unknown>, extra: { _meta?: Record<string, unknown> }) => {
+      // Free tier first, unless the client is already paying.
+      const paying = !!extra?._meta?.["x402/payment"];
+      const ttl = (args.ttl_seconds as number | undefined) ?? 86400;
+      if (!paying && ttl <= FREE_MAX_TTL && (await claimFree(caller.ip))) return create(args, true);
+      return paidCreate(args, extra);
     }) as never,
   );
 
@@ -116,6 +135,7 @@ export async function buildMcpServer(origin: string): Promise<McpServer> {
       }
       // Only one caller can win the atomic take; anyone racing us gets GONE.
       if (!(await takeSecret(parsed.id))) return fail(GONE);
+      await track("read", caller.client);
       return text(plaintext);
     },
   );
@@ -145,6 +165,7 @@ export async function buildMcpServer(origin: string): Promise<McpServer> {
     async ({ id, receiptToken }) => {
       if (!(await metaForReceipt(id, receiptToken))) return fail("Not found");
       await burnSecret(id);
+      await track("burned", caller.client);
       return text({ burned: true });
     },
   );

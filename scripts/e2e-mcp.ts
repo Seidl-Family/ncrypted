@@ -18,10 +18,18 @@ await plain.connect(new StreamableHTTPClientTransport(url));
 const tools = (await plain.listTools()).tools.map((t) => t.name).sort();
 assert.deepEqual(tools, ["ncrypted_burn", "ncrypted_create", "ncrypted_read", "ncrypted_status"]);
 step(`tools: ${tools.join(", ")}`);
-const unpaid = await plain.callTool({ name: "ncrypted_create", arguments: { secret: "x" } });
-assert.equal(unpaid.isError, true);
-assert.match(textOf(unpaid), /"accepts"/);
-step("unpaid create returns x402 PaymentRequired");
+// Unpaid calls use the free tier until it runs out, then get an x402 PaymentRequired.
+let unpaid;
+let freeUsed = 0;
+for (let i = 0; i < 10; i++) {
+  unpaid = await plain.callTool({ name: "ncrypted_create", arguments: { secret: "x", ttl_seconds: 300 } });
+  if (unpaid.isError) break;
+  assert.equal(JSON.parse(textOf(unpaid)).free, true);
+  freeUsed++;
+}
+assert.equal(unpaid!.isError, true);
+assert.match(textOf(unpaid!), /"accepts"/);
+step(`unpaid creates: ${freeUsed} free, then x402 PaymentRequired`);
 
 const client = createx402MCPClient({
   name: "e2e-paying",

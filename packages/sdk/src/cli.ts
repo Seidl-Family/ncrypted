@@ -15,7 +15,8 @@ Usage:
   ncrypted wallet new           create a payer wallet at ~/.config/ncrypted/wallet.key
   ncrypted wallet               show the payer address and its USDC balance on Base
 
-Creating a secret needs a Base wallet holding a little USDC (no ETH needed). The key is read from
+The first 3 secrets per day are free (TTL up to 24h, no email). After that, creating a secret needs a Base
+wallet holding a little USDC (no ETH needed). The key is read from
 NCRYPTED_WALLET_PRIVATE_KEY, else NCRYPTED_WALLET_FILE, else ~/.config/ncrypted/wallet.key.
 NCRYPTED_URL overrides the API origin.`;
 
@@ -48,7 +49,7 @@ async function main() {
     },
   });
   const [cmd, arg] = positionals;
-  const client = new Ncrypted();
+  const client = new Ncrypted({ client: "cli" });
   const out = (v: unknown) => console.log(values.json ? JSON.stringify(v) : typeof v === "string" ? v : JSON.stringify(v, null, 2));
 
   switch (values.help ? "help" : cmd) {
@@ -81,10 +82,14 @@ async function main() {
         break;
       }
       const key = normalizeKey(process.env.NCRYPTED_WALLET_PRIVATE_KEY) ?? (await readWalletKey());
-      if (!key) throw new Error("No wallet configured. Run `npx ncrypted wallet new`.");
+      const { freeRemaining, freePerDay } = await client.quota();
+      if (!key) {
+        out({ wallet: null, freeRemainingToday: freeRemaining, freePerDay, next: "Run `npx ncrypted wallet new` to pay for more than the free tier." });
+        break;
+      }
       const address = privateKeyToAccount(key).address;
       const usdc = await usdcBalance(address);
-      out({ address, usdc, secretsAvailable: Math.floor(usdc / 0.005) });
+      out({ address, usdc, paidSecretsAvailable: Math.floor(usdc / 0.005), freeRemainingToday: freeRemaining });
       break;
     }
     default:

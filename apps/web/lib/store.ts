@@ -9,6 +9,8 @@ export interface Meta {
   expiresAt: string;
   readAt?: string;
   emailed?: boolean;
+  /** Created under the free tier (no payment). Free secrets can't be emailed. */
+  free?: boolean;
 }
 
 /** Receipts outlive the secret by a week so senders can still check whether it was read. */
@@ -26,6 +28,13 @@ interface Store {
   updateMeta(id: string, patch: Partial<Meta>): Promise<void>;
   /** Sets emailed=true; returns false if it was already set. */
   claimEmail(id: string): Promise<boolean>;
+  /** Increments a counter, setting its TTL on first use. Returns the new value. */
+  incr(key: string, ttl: number): Promise<number>;
+  /** Reads a counter without changing it. */
+  count(key: string): Promise<number>;
+  /** Increments a field in a hash of daily counters. */
+  hincr(key: string, field: string, ttl: number): Promise<void>;
+  hgetall(key: string): Promise<Record<string, number>>;
 }
 
 function redisStore(redis: Redis): Store {
@@ -57,7 +66,7 @@ function redisStore(redis: Redis): Store {
     async meta(id) {
       const m = await redis.hgetall<Record<string, unknown>>(`m:${id}`);
       if (!m) return null;
-      return { ...m, emailed: m.emailed === true || m.emailed === "true" } as Meta;
+      return { ...m, emailed: m.emailed === true || m.emailed === "true", free: m.free === true || m.free === "true" } as Meta;
     },
     async updateMeta(id, patch) {
       await redis.hset(`m:${id}`, patch as Record<string, unknown>);
@@ -65,13 +74,29 @@ function redisStore(redis: Redis): Store {
     async claimEmail(id) {
       return (await redis.hsetnx(`m:${id}`, "emailedClaim", "1")) === 1;
     },
+    async incr(key, ttl) {
+      const [n] = await redis.multi().incr(key).expire(key, ttl, "NX").exec<[number, number]>();
+      return n;
+    },
+    async count(key) {
+      return Number((await redis.get<number>(key)) ?? 0);
+    },
+    async hincr(key, field, ttl) {
+      await redis.multi().hincrby(key, field, 1).expire(key, ttl, "NX").exec();
+    },
+    async hgetall(key) {
+      const h = (await redis.hgetall<Record<string, number | string>>(key)) ?? {};
+      return Object.fromEntries(Object.entries(h).map(([k, v]) => [k, Number(v)]));
+    },
   };
 }
 
 /** Dev-only fallback so the app runs locally before Redis is provisioned. */
 function memoryStore(): Store {
-  const g = globalThis as unknown as { __ncrypted?: { s: Map<string, [string, number]>; m: Map<string, Meta & { claim?: boolean }> } };
-  const db = (g.__ncrypted ??= { s: new Map(), m: new Map() });
+  const g = globalThis as unknown as {
+    __ncrypted?: { s: Map<string, [string, number]>; m: Map<string, Meta & { claim?: boolean }>; c: Map<string, number>; h: Map<string, Record<string, number>> };
+  };
+  const db = (g.__ncrypted ??= { s: new Map(), m: new Map(), c: new Map(), h: new Map() });
   const live = (id: string) => {
     const e = db.s.get(id);
     if (e && e[1] < Date.now()) db.s.delete(id);
@@ -111,6 +136,22 @@ function memoryStore(): Store {
       if (!m || m.claim) return false;
       m.claim = true;
       return true;
+    },
+    async incr(key) {
+      const n = (db.c.get(key) ?? 0) + 1;
+      db.c.set(key, n);
+      return n;
+    },
+    async count(key) {
+      return db.c.get(key) ?? 0;
+    },
+    async hincr(key, field) {
+      const h = db.h.get(key) ?? {};
+      h[field] = (h[field] ?? 0) + 1;
+      db.h.set(key, h);
+    },
+    async hgetall(key) {
+      return { ...(db.h.get(key) ?? {}) };
     },
   };
 }

@@ -12,11 +12,11 @@ export interface CreatedRecord {
 }
 
 /** Stores an already-encrypted payload and returns its id, share URL (without key) and receipt token. */
-export async function storeSecret(payload: EncryptedPayload, ttl: number, origin: string): Promise<CreatedRecord> {
+export async function storeSecret(payload: EncryptedPayload, ttl: number, origin: string, free = false): Promise<CreatedRecord> {
   const id = toB64url(randomBytes(16));
   const receiptToken = toB64url(randomBytes(24));
   const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
-  await getStore().put(id, payload, { rt: await sha256(receiptToken), status: "pending", expiresAt }, ttl);
+  await getStore().put(id, payload, { rt: await sha256(receiptToken), status: "pending", expiresAt, ...(free ? { free: true } : {}) }, ttl);
   return { id, url: `${origin}/s/${id}`, expiresAt, receiptToken };
 }
 

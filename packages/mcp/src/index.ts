@@ -6,7 +6,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { Ncrypted, usdcBalance, walletPath } from "ncrypted";
 import { normalizeKey, readWalletKey } from "ncrypted/wallet";
 
-const client = new Ncrypted();
+const client = new Ncrypted({ client: "mcp" });
 const server = new McpServer({ name: "ncrypted", version: "0.1.2" });
 
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }] });
@@ -18,7 +18,7 @@ server.registerTool(
     title: "Create one-time secret",
     description:
       "Encrypt a password, API key, or sensitive note locally and store it as a one-time secret. Returns a link that " +
-      "works exactly once, then self-destructs. Costs 0.005 USDC (paid automatically from the configured Base wallet via x402). " +
+      "works exactly once, then self-destructs. The first 3 per day are free (TTL up to 24h, no email); after that each costs 0.005 USDC, paid automatically from the configured Base wallet via x402. " +
       "Share the returned link with a human, email it (emailTo), or hand it to another agent, which reads it with ncrypted_read. " +
       "Treat the link like the secret itself; never echo the secret value in chat.",
     inputSchema: {
@@ -38,7 +38,8 @@ server.registerTool(
         expiresAt: r.expiresAt,
         receiptToken: r.receiptToken,
         emailed: r.emailed,
-        paymentTx: r.paymentTx,
+        free: r.free,
+        ...(r.free ? { freeRemaining: r.freeRemaining } : { paymentTx: r.paymentTx }),
         note: "The link can be opened once. Keep receiptToken to check status or burn it.",
       });
     } catch (e) {
@@ -108,19 +109,25 @@ server.registerTool(
   "ncrypted_wallet",
   {
     title: "Show payer wallet",
-    description: "Show the address and USDC balance (Base) of the wallet that pays for new secrets, and how many secrets it can afford. Free.",
+    description: "Show today's remaining free secrets, plus the address and USDC balance (Base) of the wallet that pays for more. Free.",
     inputSchema: {},
     annotations: { readOnlyHint: true },
   },
   async () => {
     try {
       const key = normalizeKey(process.env.NCRYPTED_WALLET_PRIVATE_KEY) ?? (await readWalletKey());
+      const { freeRemaining } = await client.quota().catch(() => ({ freeRemaining: undefined }));
       if (!key) {
-        return text({ configured: false, keyFile: walletPath(), fix: "Run `npx ncrypted wallet new` in a terminal, then send a little USDC on Base to the printed address." });
+        return text({
+          configured: false,
+          freeRemainingToday: freeRemaining,
+          keyFile: walletPath(),
+          fix: "Free secrets work without a wallet. For more, run `npx ncrypted wallet new` in a terminal, then send a little USDC on Base to the printed address.",
+        });
       }
       const address = privateKeyToAccount(key).address;
       const usdc = await usdcBalance(address);
-      return text({ configured: true, address, usdc, secretsAvailable: Math.floor(usdc / 0.005) });
+      return text({ configured: true, address, usdc, paidSecretsAvailable: Math.floor(usdc / 0.005), freeRemainingToday: freeRemaining });
     } catch (e) {
       return fail(e);
     }
