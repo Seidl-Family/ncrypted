@@ -81,32 +81,32 @@ npx ncrypted vercel-env "https://ncrypted.ai/s/…#…" --key STRIPE_SECRET_KEY 
   {
     slug: "ai-sdk",
     title: "Vercel AI SDK",
-    summary: "Give an AI SDK agent the ncrypted tools via MCP.",
+    summary: "Drop-in AI SDK tools: one-time links and Vercel env delivery, encrypted in your server process.",
     sections: [
-      { code: "npm install ai @ai-sdk/mcp" },
+      { code: "npm install ncrypted ai zod" },
       {
+        code: `import { generateText } from "ai";
+import { ncryptedTools } from "ncrypted/ai-sdk";
+
+const { text } = await generateText({
+  model, // your model
+  tools: ncryptedTools(), // ncrypted_create, ncrypted_read, ncrypted_status, ncrypted_burn, ncrypted_to_vercel_env
+  system: "When a credential must be shared or installed, use the ncrypted tools. Never paste secrets into chat.",
+  prompt: "Create a one-time link for the new admin password so I can send it to Sam.",
+});`,
+      },
+      {
+        text: "Encryption happens in your server process; ncrypted only stores ciphertext. Pick a subset with `ncryptedTools({ include: [\"ncrypted_create\", \"ncrypted_read\"] })`. `ncrypted_to_vercel_env` needs VERCEL_TOKEN and writes the value without the model ever seeing it. Payments come from NCRYPTED_WALLET_PRIVATE_KEY once the free tier is used up.",
+      },
+      {
+        heading: "via MCP instead",
         code: `import { createMCPClient } from "@ai-sdk/mcp";
 import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
-import { generateText } from "ai";
 
 const ncrypted = await createMCPClient({
   transport: new Experimental_StdioMCPTransport({ command: "npx", args: ${MCP_ARGS} }),
 });
-
-try {
-  const { text } = await generateText({
-    model, // your model
-    tools: await ncrypted.tools(),
-    system: "When a credential must be shared or installed, use the ncrypted tools. Never paste secrets into chat.",
-    prompt: "Create a one-time link for the new admin password so I can send it to Sam.",
-  });
-} finally {
-  await ncrypted.close();
-}`,
-      },
-      {
-        heading: "hosted alternative",
-        text: "On serverless runtimes that can't spawn processes, use `transport: { type: \"http\", url: \"https://ncrypted.ai/mcp\" }`. The hosted server encrypts for you (it sees the plaintext briefly) and paid creates require an x402-capable client; the free tier works without one.",
+const tools = await ncrypted.tools(); // includes the request-a-secret tools; close() when done`,
       },
       { heading: "pricing", text: PRICING },
     ],

@@ -10,7 +10,7 @@ import { privateKeyToAccount as accountOf } from "viem/accounts";
 export const DEFAULT_BASE_URL = "https://ncrypted.ai";
 /** Hard cap on what the SDK will ever pay for one secret, whatever the server asks. */
 export const MAX_PRICE = "$0.01";
-export const SDK_VERSION = "0.2.0";
+export const SDK_VERSION = "0.3.0";
 
 export interface NcryptedOptions {
   /** API origin. Defaults to NCRYPTED_URL or the hosted service. */
