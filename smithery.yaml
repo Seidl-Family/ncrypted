@@ -1,4 +1,4 @@
-# Smithery: stdio MCP server published to npm as @ncrypted/mcp
+# Smithery: stdio MCP server published to npm as @seidl-family/ncrypted-mcp
 startCommand:
   type: stdio
   configSchema:
@@ -10,7 +10,7 @@ startCommand:
   commandFunction: |-
     (config) => ({
       command: "npx",
-      args: ["-y", "@ncrypted/mcp@latest"],
+      args: ["-y", "@seidl-family/ncrypted-mcp@latest"],
       env: config.walletPrivateKey ? { NCRYPTED_WALLET_PRIVATE_KEY: config.walletPrivateKey } : {}
     })
   exampleConfig:

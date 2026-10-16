@@ -1,5 +1,5 @@
 {
-  "name": "@ncrypted/mcp",
+  "name": "@seidl-family/ncrypted-mcp",
   "version": "0.1.1",
   "description": "MCP server for ncrypted: one-time, end-to-end encrypted secrets for AI agents, paid per secret in USDC via x402.",
   "license": "MIT",

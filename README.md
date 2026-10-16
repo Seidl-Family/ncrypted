@@ -21,7 +21,7 @@ You need a dedicated, low-balance Base wallet with some USDC (no ETH needed). Ex
 
 **Any MCP client** (Claude Desktop, Cursor, Codex, …)
 ```json
-{ "mcpServers": { "ncrypted": { "command": "npx", "args": ["-y", "@ncrypted/mcp"], "env": { "NCRYPTED_WALLET_PRIVATE_KEY": "0x..." } } } }
+{ "mcpServers": { "ncrypted": { "command": "npx", "args": ["-y", "@seidl-family/ncrypted-mcp"], "env": { "NCRYPTED_WALLET_PRIVATE_KEY": "0x..." } } } }
 ```
 
 **Agent Skill**: `npx skills add Seidl-Family/ncrypted`
@@ -52,7 +52,7 @@ const value = await nc.read(link); // free, destroys it
 |---|---|
 | `apps/web` | Next.js app on Vercel: API, viewer page, llms.txt, openapi.json |
 | `packages/sdk` | `ncrypted` on npm: crypto, client, CLI |
-| `packages/mcp` | `@ncrypted/mcp` on npm: stdio MCP server |
+| `packages/mcp` | `@seidl-family/ncrypted-mcp` on npm: stdio MCP server |
 | `skills/ncrypted` | Agent Skill (`SKILL.md`) |
 | `plugins/ncrypted` | Claude Code plugin; `.claude-plugin/marketplace.json` lists it |
 | `server.json`, `smithery.yaml` | MCP Registry and Smithery manifests |

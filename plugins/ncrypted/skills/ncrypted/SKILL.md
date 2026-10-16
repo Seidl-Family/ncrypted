@@ -14,7 +14,7 @@ ncrypted turns a sensitive value into a link that can be opened **exactly once**
 
 Do **not** use it for non-sensitive data, or as long-term storage: a secret disappears after one read or at its expiry.
 
-## Tools (MCP server `@ncrypted/mcp`)
+## Tools (MCP server `@seidl-family/ncrypted-mcp`)
 | Tool | Use |
 |---|---|
 | `ncrypted_create` | `secret`, optional `ttl_seconds` (300 to 604800, default 86400), `passphrase`, `emailTo`, `emailNote`. Returns `link`, `id`, `receiptToken`, `expiresAt`. |

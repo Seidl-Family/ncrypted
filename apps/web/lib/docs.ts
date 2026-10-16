@@ -6,7 +6,7 @@ export function llmsTxt(origin: string) {
 > One-time, end-to-end encrypted secrets for AI agents. An agent encrypts a password, API key or sensitive note locally, pays 0.005 USDC (x402, Base), and gets a link that works exactly once. Share it with a human, email it, or hand it to another agent. Reading is free and destroys the secret.
 
 ## Quick start (recommended: encryption happens on your side)
-- MCP server: \`npx -y @ncrypted/mcp\` with env NCRYPTED_WALLET_PRIVATE_KEY=<Base wallet with USDC>. Tools: ncrypted_create, ncrypted_read, ncrypted_status, ncrypted_burn.
+- MCP server: \`npx -y @seidl-family/ncrypted-mcp\` with env NCRYPTED_WALLET_PRIVATE_KEY=<Base wallet with USDC>. Tools: ncrypted_create, ncrypted_read, ncrypted_status, ncrypted_burn.
 - CLI: \`echo "s3cret" | npx ncrypted create --ttl 1h\`, \`npx ncrypted read <link>\`
 - SDK: \`import { Ncrypted } from "ncrypted"; const { link } = await new Ncrypted().create("s3cret");\`
 - Claude Code: \`/plugin marketplace add ${REPO}\` then \`/plugin install ncrypted@ncrypted\`

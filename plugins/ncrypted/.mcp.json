@@ -2,7 +2,7 @@
   "mcpServers": {
     "ncrypted": {
       "command": "npx",
-      "args": ["-y", "@ncrypted/mcp@latest"],
+      "args": ["-y", "@seidl-family/ncrypted-mcp@latest"],
       "env": {
         "NCRYPTED_WALLET_PRIVATE_KEY": "${NCRYPTED_WALLET_PRIVATE_KEY}"
       }

@@ -8,7 +8,7 @@
     "apps/web"
   ],
   "scripts": {
-    "build": "npm run build -w ncrypted && npm run build -w @ncrypted/mcp && npm run build -w web",
+    "build": "npm run build -w ncrypted && npm run build -w @seidl-family/ncrypted-mcp && npm run build -w web",
     "test": "npm test -w ncrypted",
     "dev": "npm run dev -w web",
     "e2e": "node --env-file=.env.e2e --experimental-strip-types scripts/e2e.ts",

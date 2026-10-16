@@ -52,7 +52,7 @@ export const POST = withX402(
     "/api/v1/secrets": {
       accepts: { scheme: "exact", price: PRICE, network: NETWORK, payTo: PAY_TO ?? "0x0000000000000000000000000000000000000000" },
       description:
-        "ncrypted: store a client-side encrypted, one-time secret (password, API key, note). Returns an id; the client builds the share link /s/{id}#{key}. The secret self-destructs after one read or at ttl. Use the `ncrypted` npm SDK or @ncrypted/mcp to encrypt.",
+        "ncrypted: store a client-side encrypted, one-time secret (password, API key, note). Returns an id; the client builds the share link /s/{id}#{key}. The secret self-destructs after one read or at ttl. Use the `ncrypted` npm SDK or @seidl-family/ncrypted-mcp to encrypt.",
       mimeType: "application/json",
       serviceName: "ncrypted",
       tags: ["secrets", "security", "encryption", "one-time", "sharing", "agents"],

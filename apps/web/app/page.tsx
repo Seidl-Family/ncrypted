@@ -46,7 +46,7 @@ export default function Home() {
   "mcpServers": {
     "ncrypted": {
       "command": "npx",
-      "args": ["-y", "@ncrypted/mcp"],
+      "args": ["-y", "@seidl-family/ncrypted-mcp"],
       "env": { "NCRYPTED_WALLET_PRIVATE_KEY": "0x..." }
     }
   }
