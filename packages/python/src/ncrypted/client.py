@@ -14,7 +14,7 @@ import httpx
 
 from .crypto import decrypt, encrypt, parse_link
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 DEFAULT_BASE_URL = "https://ncrypted.ai"
 MAX_PRICE = "$0.01"
 SETTLE_ATTEMPTS = 3
@@ -202,7 +202,9 @@ class Ncrypted:
             raise _error(res)
         return res.json()
 
-    async def burn(self, id: str, receipt_token: str) -> None:
+    async def burn(self, id: str, receipt_token: str) -> dict[str, Any]:
+        """Destroy an unread secret you created. Returns {"burned": bool, "status": str}; burned is False (with the real
+        status) when it was already read, burned or expired."""
         async with httpx.AsyncClient(timeout=self._timeout) as http:
             res = await http.delete(
                 f"{self.base_url}/api/v1/secrets/{id}",
@@ -210,6 +212,8 @@ class Ncrypted:
             )
         if res.status_code >= 400:
             raise _error(res)
+        body = res.json() if res.content else {}
+        return {"burned": body.get("burned", True), "status": body.get("status", "burned")}
 
     async def quota(self) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=self._timeout) as http:
@@ -242,7 +246,7 @@ class NcryptedSync:
     def status(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return _run(self._c.status(*args, **kwargs))
 
-    def burn(self, *args: Any, **kwargs: Any) -> None:
+    def burn(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return _run(self._c.burn(*args, **kwargs))
 
     def quota(self) -> dict[str, Any]:

@@ -67,8 +67,7 @@ def ncrypted_tools(client: Ncrypted | None = None) -> list[StructuredTool]:
 
     async def burn(id: str, receipt_token: str) -> str:
         try:
-            await nc.burn(id, receipt_token)
-            return json.dumps({"burned": True})
+            return json.dumps(await nc.burn(id, receipt_token))
         except NcryptedError as e:
             return f"Error: {e}"
 
@@ -97,5 +96,11 @@ def ncrypted_tools(client: Ncrypted | None = None) -> list[StructuredTool]:
             _ReadInput,
         ),
         tool("ncrypted_status", "Check whether a secret you created has been opened (pending, read, burned or expired). Free.", status, _ReceiptInput),
-        tool("ncrypted_burn", "Destroy a secret you created before anyone opens it. Free.", burn, _ReceiptInput),
+        tool(
+            "ncrypted_burn",
+            "Permanently destroy an unread secret you created so its link stops working. Returns burned=false with the real "
+            "status if it was already read, burned or expired (if read, rotate the credential). Free.",
+            burn,
+            _ReceiptInput,
+        ),
     ]
