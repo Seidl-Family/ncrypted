@@ -1,6 +1,6 @@
 {
   "name": "@seidl-family/ncrypted-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "MCP server for ncrypted: one-time, end-to-end encrypted secrets for AI agents, paid per secret in USDC via x402.",
   "license": "MIT",
   "type": "module",
@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
-    "ncrypted": "^0.2.0",
+    "ncrypted": "^0.3.1",
     "zod": "^4.6.7",
     "viem": "^2.57.7"
   },

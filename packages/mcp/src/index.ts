@@ -7,7 +7,7 @@ import { Ncrypted, usdcBalance, walletPath } from "ncrypted";
 import { normalizeKey, readWalletKey } from "ncrypted/wallet";
 
 const client = new Ncrypted({ client: "mcp" });
-const server = new McpServer({ name: "ncrypted", version: "0.2.1" });
+const server = new McpServer({ name: "ncrypted", version: "0.2.2" });
 
 const receiptFields = {
   id: z.string().describe("The secret's id, returned as `id` by ncrypted_create."),
