@@ -32,7 +32,7 @@ export default function Home() {
         </div>
         <div className="card">
           <h3>4. Burn after reading</h3>
-          <p>The first read deletes it atomically. Unread secrets expire (1 hour to 7 days).</p>
+          <p>The first read deletes it atomically. Unread secrets expire (5 minutes to 7 days).</p>
         </div>
       </div>
 
@@ -52,7 +52,10 @@ export default function Home() {
       <h3>Any MCP client (local, zero-knowledge)</h3>
       <pre>{`{
   "mcpServers": {
-    "ncrypted": { "command": "npx", "args": ["-y", "@seidl-family/ncrypted-mcp"] }
+    "ncrypted": {
+      "command": "npx",
+      "args": ["-y", "@seidl-family/ncrypted-mcp"]
+    }
   }
 }`}</pre>
       <h3>Hosted MCP</h3>
