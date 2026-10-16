@@ -46,6 +46,17 @@ const value = await nc.read(link); // free, destroys it
 - **Pay per secret**: x402 `exact` scheme, USDC on Base, settled only after the secret is stored. The SDK refuses to pay more than $0.01 per request.
 - **Email**: the creator can email the link once. It passes through the server for that request and isn't stored. Use a passphrase for very sensitive values.
 
+## Payments and safety
+
+ncrypted charges a fixed **0.005 USDC per secret created**, paid over [x402](https://x402.org) on Base. Everything else is free: reading, status checks, revoking.
+
+- **Narrow scope:** the only payment the plugin can make is ncrypted's own fee for `ncrypted_create`. It has no tool to send arbitrary amounts, trade, swap, or pay anyone else.
+- **Hard cap:** the SDK refuses to pay more than 0.01 USDC for a single request, whatever the server asks.
+- **Dedicated wallet:** payments come from a low-balance wallet the user creates on purpose (`npx ncrypted wallet new`) and funds themselves. The plugin never asks for, reads or stores the user's main wallet, and the skill tells the agent never to ask for private keys in chat.
+- **Visible and explicit:** every charge is an explicit `ncrypted_create` tool call. There are no background or recurring charges.
+- **No charge on failure:** payment settles through Coinbase's x402 facilitator only after the secret is stored.
+- **Zero-knowledge by default:** the local MCP server encrypts on the user's machine, so the service stores ciphertext only. The optional hosted endpoint (`https://ncrypted.ai/mcp`) is clearly labeled as server-side encryption.
+
 ## Repo layout
 
 | Path | What |
