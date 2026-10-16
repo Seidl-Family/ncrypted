@@ -2,7 +2,7 @@
   "mcpServers": {
     "ncrypted": {
       "command": "npx",
-      "args": ["-y", "@seidl-family/ncrypted-mcp@latest"]
+      "args": ["-y", "@seidl-family/ncrypted-mcp@0.1.2"]
     }
   }
 }

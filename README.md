@@ -79,3 +79,5 @@ npm run build && npm run e2e   # needs .env.e2e with a funded Base Sepolia walle
 ```
 
 After editing `skills/ncrypted/SKILL.md`, run `npm run sync:skill`.
+
+On each MCP release, bump the pinned version in `plugins/ncrypted/.mcp.json` and `gemini-extension.json` (the Claude directory rejects `@latest`), then run the "Publish to MCP Registry" workflow.
