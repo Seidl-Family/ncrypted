@@ -3,7 +3,7 @@ import { ExactEvmScheme } from "@x402/evm";
 import { privateKeyToAccount } from "viem/accounts";
 import { encrypt, decrypt, parseLink, type EncryptedPayload } from "./crypto.js";
 
-export const DEFAULT_BASE_URL = "https://ncrypted.vercel.app";
+export const DEFAULT_BASE_URL = "https://ncrypted-ai.vercel.app";
 /** Hard cap on what the SDK will ever pay for one secret, whatever the server asks. */
 export const MAX_PRICE = "$0.01";
 
@@ -47,15 +47,33 @@ export class NcryptedError extends Error {
   }
 }
 
+function settlementOf(res: Response): { success: boolean; errorReason?: string; transaction?: string } | undefined {
+  const header = res.headers.get("payment-response") ?? res.headers.get("x-payment-response");
+  if (!header) return undefined;
+  try {
+    return decodePaymentResponseHeader(header);
+  } catch {
+    return undefined;
+  }
+}
+
 async function errorFrom(res: Response): Promise<NcryptedError> {
   let msg = res.statusText;
   try {
     const body = (await res.json()) as { error?: string };
     if (body.error) msg = body.error;
   } catch {}
-  if (res.status === 402) msg = `Payment required or failed (${msg}). Check the wallet has USDC on Base.`;
+  if (res.status === 402) {
+    const reason = settlementOf(res)?.errorReason;
+    msg = reason
+      ? `Payment settlement failed (${reason}). You were not charged.`
+      : `Payment required (${msg}). Check the wallet holds USDC on Base.`;
+  }
   return new NcryptedError(msg, res.status);
 }
+
+/** Settlement attempts per create. A failed settlement never moves funds, so retrying is safe. */
+const SETTLE_ATTEMPTS = 3;
 
 export class Ncrypted {
   readonly baseUrl: string;
@@ -83,21 +101,21 @@ export class Ncrypted {
     const { payload, key } = await encrypt(secret, opts.passphrase);
     const body: Record<string, unknown> = { ...payload, ttl: opts.ttl ?? 86400 };
     // The link is only knowable after the server assigns an id, so email goes in a second, free call.
-    const res = await this.payFetch(`${this.baseUrl}/api/v1/secrets`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    for (let attempt = 1; ; attempt++) {
+      res = await this.payFetch(`${this.baseUrl}/api/v1/secrets`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      // Retry only when the payment was signed but settlement failed on-chain (e.g. a facilitator RPC hiccup).
+      if (res.status === 402 && settlementOf(res)?.success === false && attempt < SETTLE_ATTEMPTS) continue;
+      break;
+    }
     if (!res.ok) throw await errorFrom(res);
     const data = (await res.json()) as { id: string; url: string; expiresAt: string; receiptToken: string };
     const link = `${data.url}#${key}`;
-    let paymentTx: string | undefined;
-    const header = res.headers.get("payment-response") ?? res.headers.get("x-payment-response");
-    if (header) {
-      try {
-        paymentTx = decodePaymentResponseHeader(header).transaction;
-      } catch {}
-    }
+    const paymentTx = settlementOf(res)?.transaction;
     let emailed = false;
     if (opts.emailTo) {
       await this.email(data.id, data.receiptToken, link, opts.emailTo, opts.emailNote);
