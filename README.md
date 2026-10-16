@@ -57,6 +57,19 @@ ncrypted charges a fixed **0.005 USDC per secret created**, paid over [x402](htt
 - **No charge on failure:** payment settles through Coinbase's x402 facilitator only after the secret is stored.
 - **Zero-knowledge by default:** the local MCP server encrypts on the user's machine, so the service stores ciphertext only. The optional hosted endpoint (`https://ncrypted.ai/mcp`) is clearly labeled as server-side encryption.
 
+## Data and services contacted
+
+The plugin's MCP server, the CLI and the skill contact only these services:
+
+| Service | What is sent | When |
+|---|---|---|
+| **ncrypted API** (`https://ncrypted.ai`, Vercel + Upstash Redis) | Ciphertext, IV, salt, passphrase flag and TTL. Never the key, passphrase or plaintext. | Creating, reading, checking status of or burning a secret |
+| **Coinbase x402 facilitator / Base network** | A signed USDC payment authorization (payer address, amount, payee) | Creating a secret (0.005 USDC) |
+| **Base public RPC** (`mainnet.base.org`) | The payer wallet address | `ncrypted_wallet` / `ncrypted wallet` balance checks |
+| **Resend**, via the ncrypted API | Recipient email address, the share link (which includes the key) and an optional note. Relayed once and not stored by ncrypted. | Only when the user asks to email a link |
+
+Retention: ciphertext is deleted on first read, when burned, or at expiry (at most 7 days). Receipt metadata is deleted 7 days after expiry. No analytics, no cookies. Details: [privacy policy](https://ncrypted.ai/privacy).
+
 ## Repo layout
 
 | Path | What |
