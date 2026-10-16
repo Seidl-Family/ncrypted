@@ -30,3 +30,6 @@ input { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px soli
 .viewer { max-width: 560px; margin: 10vh auto; }
 .secret { white-space: pre-wrap; word-break: break-all; }
 .warn { color: var(--danger); }
+ul { color: var(--muted); padding-left: 20px; }
+li { margin: 6px 0; }
+li b { color: var(--fg); }

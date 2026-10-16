@@ -82,7 +82,7 @@ const { link } = await new Ncrypted().create("hunter2", { ttl: 3600 });`}</pre>
       </table>
       <p>
         Full details: <a href="/llms.txt">llms.txt</a> · <a href="/openapi.json">openapi.json</a> ·{" "}
-        <a href={`https://github.com/${REPO}`}>source</a>
+        <a href={`https://github.com/${REPO}`}>source</a> · <a href="/privacy">privacy</a> · <a href="/terms">terms</a>
       </p>
 
       <h2>Security notes</h2>
