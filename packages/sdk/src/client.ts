@@ -354,12 +354,17 @@ export class Ncrypted {
     return (await res.json()) as { status: SecretStatus; readAt?: string; expiresAt?: string };
   }
 
-  /** Destroys an unread secret early. Needs the creator's receipt token. */
-  async burn(id: string, receiptToken: string): Promise<void> {
+  /**
+   * Destroys an unread secret early. Needs the creator's receipt token. Resolves { burned: false } with the current
+   * status when there was nothing left to destroy (already read, burned or expired).
+   */
+  async burn(id: string, receiptToken: string): Promise<{ burned: boolean; status: SecretStatus }> {
     const res = await fetch(`${this.baseUrl}/api/v1/secrets/${id}`, {
       method: "DELETE",
       headers: this.headers({ authorization: `Bearer ${receiptToken}` }),
     });
     if (!res.ok) throw await errorFrom(res);
+    const body = (await res.json().catch(() => ({}))) as { burned?: boolean; status?: SecretStatus };
+    return { burned: body.burned ?? true, status: body.status ?? "burned" };
   }
 }

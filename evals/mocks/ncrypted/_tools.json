@@ -3,7 +3,7 @@
     {
       "name": "ncrypted_create",
       "title": "Create one-time secret",
-      "description": "Encrypt a password, API key, or sensitive note locally and store it as a one-time secret. Returns a link that works exactly once, then self-destructs. The first 3 per day are free (TTL up to 24h, no email); after that each costs 0.005 USDC, paid automatically from the configured Base wallet via x402. Share the returned link with a human, email it (emailTo), or hand it to another agent, which reads it with ncrypted_read. Treat the link like the secret itself; never echo the secret value in chat.",
+      "description": "Encrypt a password, API key, or sensitive note locally and store it as a one-time secret. Returns a link that works exactly once, then self-destructs. The first 3 per day are free (TTL up to 24h, no email); after that each costs 0.005 USDC, paid automatically from the configured Base wallet via x402. Share the returned link with a human, email it (emailTo), or hand it to another agent, which reads it with ncrypted_read. Treat the link like the secret itself; never echo the secret value in chat. Returns { link, id, receiptToken, expiresAt }; keep id and receiptToken to check delivery (ncrypted_status) or revoke the link (ncrypted_burn). Use ncrypted_request instead when you need a secret FROM the user, and ncrypted_to_vercel_env / ncrypted_to_dotenv when a value from a link must be installed somewhere.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -46,7 +46,7 @@
     {
       "name": "ncrypted_read",
       "title": "Read one-time secret",
-      "description": "Open an ncrypted link (https://.../s/{id}#{key}), decrypt it locally and return the secret. This destroys the secret: it can never be read again. Free. Use the value only for the task at hand and do not repeat it in chat.",
+      "description": "Open an ncrypted link (https://.../s/{id}#{key}), decrypt it locally and return the secret. This destroys the secret: it can never be read again. Free. Use the value only for the task at hand and do not repeat it in chat. If the value just needs to end up in a Vercel env var or .env file, use ncrypted_to_vercel_env or ncrypted_to_dotenv instead so you never see it. To check whether someone opened a link you created, use ncrypted_status (it doesn't consume anything).",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -76,16 +76,18 @@
     {
       "name": "ncrypted_status",
       "title": "Check one-time secret status",
-      "description": "Check whether a secret you created has been read yet (pending, read, burned or expired). Free.",
+      "description": "Check whether a secret you created has been opened yet, without consuming it. Returns { status, expiresAt, readAt? } where status is pending (not opened), read, burned or expired. Use it to confirm delivery, or before deciding to ncrypted_burn a link. Only works for secrets you created (needs their receiptToken); to open a link, use ncrypted_read. Free.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "The secret's id, returned as `id` by ncrypted_create."
           },
           "receiptToken": {
-            "type": "string"
+            "type": "string",
+            "description": "The creator's receipt token, returned as `receiptToken` by ncrypted_create. Only the creator has it; the link alone isn't enough."
           }
         },
         "required": [
@@ -103,16 +105,18 @@
     {
       "name": "ncrypted_burn",
       "title": "Burn one-time secret",
-      "description": "Destroy a secret you created before anyone reads it, e.g. if the link was sent to the wrong place. Free.",
+      "description": "Permanently destroy an unread secret you created, so its link stops working (e.g. it was sent to the wrong place or is no longer needed). Irreversible. Returns { burned: true } if it was destroyed, or { burned: false, status } if there was nothing left to destroy because it was already read, burned or expired; if it was already read, the recipient has the value, so rotate the credential. Only works for secrets you created (needs their receiptToken). Free.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "The secret's id, returned as `id` by ncrypted_create."
           },
           "receiptToken": {
-            "type": "string"
+            "type": "string",
+            "description": "The creator's receipt token, returned as `receiptToken` by ncrypted_create. Only the creator has it; the link alone isn't enough."
           }
         },
         "required": [

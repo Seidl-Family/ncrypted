@@ -37,9 +37,12 @@ export async function statusOf(id: string, meta: Meta) {
   return { status, expiresAt: meta.expiresAt, ...(meta.readAt ? { readAt: meta.readAt } : {}) };
 }
 
-export async function burnSecret(id: string): Promise<void> {
+/** Destroys an unread secret. Returns false if there was nothing left to destroy (already read, burned or expired). */
+export async function burnSecret(id: string): Promise<boolean> {
   const store = getStore();
-  if (await store.drop(id)) await store.updateMeta(id, { status: "burned" });
+  const dropped = await store.drop(id);
+  if (dropped) await store.updateMeta(id, { status: "burned" });
+  return dropped;
 }
 
 function timingSafeEqual(a: string, b: string): boolean {

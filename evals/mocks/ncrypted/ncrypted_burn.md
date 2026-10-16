@@ -1,1 +1,1 @@
-{"burned":true}
+{"burned":true,"status":"burned"}

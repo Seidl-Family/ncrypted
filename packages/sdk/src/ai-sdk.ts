@@ -78,7 +78,10 @@ export function ncryptedTools(options: NcryptedToolsOptions = {}) {
 
     ncrypted_status: tool({
       description: "Check whether a secret you created has been opened (pending, read, burned or expired). Free.",
-      inputSchema: z.object({ id: z.string(), receiptToken: z.string() }),
+      inputSchema: z.object({
+        id: z.string().describe("The secret's id, returned by ncrypted_create."),
+        receiptToken: z.string().describe("The creator's receipt token, returned by ncrypted_create."),
+      }),
       execute: async ({ id, receiptToken }) => {
         try {
           return await nc.status(id, receiptToken);
@@ -90,11 +93,13 @@ export function ncryptedTools(options: NcryptedToolsOptions = {}) {
 
     ncrypted_burn: tool({
       description: "Destroy a secret you created before anyone opens it, e.g. if the link went to the wrong place. Free.",
-      inputSchema: z.object({ id: z.string(), receiptToken: z.string() }),
+      inputSchema: z.object({
+        id: z.string().describe("The secret's id, returned by ncrypted_create."),
+        receiptToken: z.string().describe("The creator's receipt token, returned by ncrypted_create."),
+      }),
       execute: async ({ id, receiptToken }) => {
         try {
-          await nc.burn(id, receiptToken);
-          return { burned: true };
+          return await nc.burn(id, receiptToken);
         } catch (e) {
           return errorText(e);
         }

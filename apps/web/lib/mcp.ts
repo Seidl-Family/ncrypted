@@ -21,6 +21,13 @@ const createInput = {
   passphrase: z.string().optional().describe("Optional second factor the recipient also needs. Share it through a different channel."),
 };
 
+const receiptFields = {
+  id: z.string().describe("The secret's id, returned as `id` by ncrypted_create."),
+  receiptToken: z
+    .string()
+    .describe("The creator's receipt token, returned as `receiptToken` by ncrypted_create. Only the creator has it; the link alone isn't enough."),
+};
+
 let paidWrapper: Promise<ReturnType<typeof createPaymentWrapper>> | undefined;
 function getPaid() {
   return (paidWrapper ??= (async () => {
@@ -89,7 +96,8 @@ export async function buildMcpServer(origin: string, caller: McpCaller): Promise
       description:
         "Store a password, API key or sensitive note as a one-time link that self-destructs after a single read. " +
         `The first ${FREE_PER_DAY} per day are free (TTL up to 24h); after that each costs ${PRICE.replace("$", "")} USDC, paid via x402 on Base (your MCP client must support x402). ` +
-        "Share the link with a person or another agent; never echo the secret in chat. " +
+        "Share the link with a person or another agent; never echo the secret in chat. Returns { link, id, receiptToken, expiresAt }; keep " +
+        "id and receiptToken to check delivery (ncrypted_status) or revoke the link (ncrypted_burn). " +
         HOSTED_NOTE,
       inputSchema: createInput,
     },
@@ -108,7 +116,8 @@ export async function buildMcpServer(origin: string, caller: McpCaller): Promise
       title: "Read one-time secret",
       description:
         "Open an ncrypted link (https://.../s/{id}#{key}) and return the secret. This destroys it permanently. Free. " +
-        "Only use the value for the task at hand and do not repeat it in chat. " +
+        "Only use the value for the task at hand and do not repeat it in chat. To check whether someone opened a link you created, use " +
+        "ncrypted_status instead (it doesn't consume anything). " +
         HOSTED_NOTE.replace("encrypts the secret for you", "decrypts the secret for you"),
       inputSchema: {
         link: z.string().url().describe("The full ncrypted link including the #key fragment."),
@@ -144,8 +153,11 @@ export async function buildMcpServer(origin: string, caller: McpCaller): Promise
     "ncrypted_status",
     {
       title: "Check one-time secret status",
-      description: "Check whether a secret you created has been read yet (pending, read, burned or expired). Free.",
-      inputSchema: { id: z.string(), receiptToken: z.string() },
+      description:
+        "Check whether a secret you created has been opened yet, without consuming it. Returns { status, expiresAt, readAt? } where " +
+        "status is pending (not opened), read, burned or expired. Use it to confirm delivery, or before deciding to ncrypted_burn a link. " +
+        "Only works for secrets you created (needs their receiptToken); to open a link, use ncrypted_read. Free.",
+      inputSchema: receiptFields,
       annotations: { readOnlyHint: true },
     },
     async ({ id, receiptToken }) => {
@@ -158,15 +170,20 @@ export async function buildMcpServer(origin: string, caller: McpCaller): Promise
     "ncrypted_burn",
     {
       title: "Burn one-time secret",
-      description: "Destroy a secret you created before anyone reads it. Free.",
-      inputSchema: { id: z.string(), receiptToken: z.string() },
+      description:
+        "Permanently destroy an unread secret you created, so its link stops working (e.g. it was sent to the wrong place or is no " +
+        "longer needed). Irreversible. Returns { burned: true } if it was destroyed, or { burned: false, status } if there was nothing " +
+        "left to destroy because it was already read, burned or expired; if it was already read, the recipient has the value, so " +
+        "rotate the credential. Only works for secrets you created (needs their receiptToken). Free.",
+      inputSchema: receiptFields,
       annotations: { destructiveHint: true },
     },
     async ({ id, receiptToken }) => {
-      if (!(await metaForReceipt(id, receiptToken))) return fail("Not found");
-      await burnSecret(id);
+      const meta = await metaForReceipt(id, receiptToken);
+      if (!meta) return fail("Not found");
+      if (!(await burnSecret(id))) return text({ burned: false, status: (await statusOf(id, meta)).status });
       await track("burned", caller.client);
-      return text({ burned: true });
+      return text({ burned: true, status: "burned" });
     },
   );
 

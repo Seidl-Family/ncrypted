@@ -9,6 +9,13 @@ import { normalizeKey, readWalletKey } from "ncrypted/wallet";
 const client = new Ncrypted({ client: "mcp" });
 const server = new McpServer({ name: "ncrypted", version: "0.2.1" });
 
+const receiptFields = {
+  id: z.string().describe("The secret's id, returned as `id` by ncrypted_create."),
+  receiptToken: z
+    .string()
+    .describe("The creator's receipt token, returned as `receiptToken` by ncrypted_create. Only the creator has it; the link alone isn't enough."),
+};
+
 const hasWallet = async () => !!(normalizeKey(process.env.NCRYPTED_WALLET_PRIVATE_KEY) ?? (await readWalletKey().catch(() => undefined)));
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }] });
 const fail = (e: unknown) => ({ isError: true, ...text(`Error: ${(e as Error).message}`) });
@@ -21,7 +28,9 @@ server.registerTool(
       "Encrypt a password, API key, or sensitive note locally and store it as a one-time secret. Returns a link that " +
       "works exactly once, then self-destructs. The first 3 per day are free (TTL up to 24h, no email); after that each costs 0.005 USDC, paid automatically from the configured Base wallet via x402. " +
       "Share the returned link with a human, email it (emailTo), or hand it to another agent, which reads it with ncrypted_read. " +
-      "Treat the link like the secret itself; never echo the secret value in chat.",
+      "Treat the link like the secret itself; never echo the secret value in chat. Returns { link, id, receiptToken, expiresAt }; keep id and " +
+      "receiptToken to check delivery (ncrypted_status) or revoke the link (ncrypted_burn). Use ncrypted_request instead when you need a " +
+      "secret FROM the user, and ncrypted_to_vercel_env / ncrypted_to_dotenv when a value from a link must be installed somewhere.",
     inputSchema: {
       secret: z.string().min(1).describe("The sensitive value to share. Max 64 KB."),
       ttl_seconds: z.number().int().min(300).max(604800).optional().describe("Expiry if never read. Default 86400 (24h), max 7 days."),
@@ -61,7 +70,9 @@ server.registerTool(
     title: "Read one-time secret",
     description:
       "Open an ncrypted link (https://.../s/{id}#{key}), decrypt it locally and return the secret. This destroys the secret: " +
-      "it can never be read again. Free. Use the value only for the task at hand and do not repeat it in chat.",
+      "it can never be read again. Free. Use the value only for the task at hand and do not repeat it in chat. If the value just needs to " +
+      "end up in a Vercel env var or .env file, use ncrypted_to_vercel_env or ncrypted_to_dotenv instead so you never see it. To check " +
+      "whether someone opened a link you created, use ncrypted_status (it doesn't consume anything).",
     inputSchema: {
       link: z.string().url().describe("The full ncrypted link including the #key fragment."),
       passphrase: z.string().optional().describe("Required only if the sender set a passphrase."),
@@ -81,8 +92,11 @@ server.registerTool(
   "ncrypted_status",
   {
     title: "Check one-time secret status",
-    description: "Check whether a secret you created has been read yet (pending, read, burned or expired). Free.",
-    inputSchema: { id: z.string(), receiptToken: z.string() },
+    description:
+      "Check whether a secret you created has been opened yet, without consuming it. Returns { status, expiresAt, readAt? } where status " +
+      "is pending (not opened), read, burned or expired. Use it to confirm delivery, or before deciding to ncrypted_burn a link. " +
+      "Only works for secrets you created (needs their receiptToken); to open a link, use ncrypted_read. Free.",
+    inputSchema: receiptFields,
     annotations: { readOnlyHint: true },
   },
   async ({ id, receiptToken }) => {
@@ -98,19 +112,23 @@ server.registerTool(
   "ncrypted_burn",
   {
     title: "Burn one-time secret",
-    description: "Destroy a secret you created before anyone reads it, e.g. if the link was sent to the wrong place. Free.",
-    inputSchema: { id: z.string(), receiptToken: z.string() },
+    description:
+      "Permanently destroy an unread secret you created, so its link stops working (e.g. it was sent to the wrong place or is no " +
+      "longer needed). Irreversible. Returns { burned: true } if it was destroyed, or { burned: false, status } if there was nothing " +
+      "left to destroy because it was already read, burned or expired; if it was already read, the recipient has the value, so " +
+      "rotate the credential. Only works for secrets you created (needs their receiptToken). Free.",
+    inputSchema: receiptFields,
     annotations: { destructiveHint: true },
   },
   async ({ id, receiptToken }) => {
     try {
-      await client.burn(id, receiptToken);
-      return text({ burned: true });
+      return text(await client.burn(id, receiptToken));
     } catch (e) {
       return fail(e);
     }
   },
 );
+
 
 const vercelFields = {
   key: z.string().describe("Env var name, e.g. STRIPE_SECRET_KEY."),

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { burnSecret } from "@/lib/secrets";
+import { burnSecret, statusOf } from "@/lib/secrets";
 import { clientName, track } from "@/lib/usage";
 import { authorize, json, rateLimit } from "@/lib/http";
 
@@ -10,7 +10,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params;
   const meta = await authorize(req, id);
   if (meta instanceof Response) return meta;
-  await burnSecret(id);
-  await track("burned", clientName(req));
-  return json({ burned: true });
+  const burned = await burnSecret(id);
+  if (burned) await track("burned", clientName(req));
+  // When nothing was left to destroy, report why (read, burned earlier, or expired).
+  return json({ burned, status: burned ? "burned" : (await statusOf(id, meta)).status });
 }
