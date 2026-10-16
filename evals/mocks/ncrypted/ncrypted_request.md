@@ -1,0 +1,1 @@
+{"id":"MockReq0000000000000000","url":"https://ncrypted.ai/r/MockReq0000000000000000#MockPublicKey0000000000000000000000000000","expiresAt":"2026-10-16T21:00:00.000Z","next":"Reply to the user now with url, ask them to open it, paste the value and tell you when done, then end your turn. Do not call ncrypted_request_fulfill until they reply."}

@@ -7,7 +7,7 @@ import { Ncrypted, usdcBalance, walletPath } from "ncrypted";
 import { normalizeKey, readWalletKey } from "ncrypted/wallet";
 
 const client = new Ncrypted({ client: "mcp" });
-const server = new McpServer({ name: "ncrypted", version: "0.2.0" });
+const server = new McpServer({ name: "ncrypted", version: "0.2.1" });
 
 const hasWallet = async () => !!(normalizeKey(process.env.NCRYPTED_WALLET_PRIVATE_KEY) ?? (await readWalletKey().catch(() => undefined)));
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }] });
@@ -26,7 +26,7 @@ server.registerTool(
       secret: z.string().min(1).describe("The sensitive value to share. Max 64 KB."),
       ttl_seconds: z.number().int().min(300).max(604800).optional().describe("Expiry if never read. Default 86400 (24h), max 7 days."),
       passphrase: z.string().optional().describe("Optional second factor. The recipient needs it in addition to the link; deliver it through a different channel."),
-      emailTo: z.string().email().optional().describe("Email the link to this address. The service sees the link for that one request; add a passphrase for highly sensitive values."),
+      emailTo: z.string().email().optional().describe("If the user asks you to email it, pass the address here and ncrypted emails the link once. Needs a paid secret (a funded wallet); without one the call fails with instructions, and you can give the user the link to send instead. The service sees the link for that one request; add a passphrase for highly sensitive values."),
       emailNote: z.string().max(200).optional().describe("Short context for the email, e.g. 'Staging DB password'. Never include the secret."),
     },
   },
@@ -174,8 +174,8 @@ server.registerTool(
     description:
       "When you need a password, API key or token from the user, call this instead of asking them to paste it into chat. " +
       "Returns a link for the user; they paste the value on that page, where it's encrypted in their browser to a key that " +
-      "only exists on this machine. Then call ncrypted_request_fulfill to deliver it (e.g. to a Vercel env var) without " +
-      "ever seeing it. Free.",
+      "only exists on this machine. Give the user the link and END YOUR TURN so they can open it; once they say they've " +
+      "submitted it, call ncrypted_request_fulfill to deliver it (e.g. to a Vercel env var) without ever seeing it. Free.",
     inputSchema: {
       label: z.string().min(1).max(120).describe("What you need and why, shown to the user, e.g. 'Stripe secret key for the billing project (Vercel production)'."),
       ttl_minutes: z.number().int().min(5).max(1440).optional().describe("How long the request stays open. Default 60."),
@@ -186,7 +186,7 @@ server.registerTool(
       const r = await client.requestSecret(label, { ttl: (ttl_minutes ?? 60) * 60 });
       return text({
         ...r,
-        next: "Send `url` to the user and ask them to open it and paste the value. Then call ncrypted_request_fulfill with this id.",
+        next: "Reply to the user now with `url`, ask them to open it, paste the value and tell you when done, then end your turn. Don't call ncrypted_request_fulfill until they reply (they can't see the link while you're still working).",
       });
     } catch (e) {
       return fail(e);
@@ -199,7 +199,7 @@ server.registerTool(
   {
     title: "Receive a requested secret",
     description:
-      "Wait for the user to answer an ncrypted_request, then deliver the value. destination 'vercel_env' or 'dotenv' writes it " +
+      "After the user says they've submitted an ncrypted_request, collect and deliver the value. destination 'vercel_env' or 'dotenv' writes it " +
       "without showing it to you (preferred). 'return' gives you the value; use it only when you must use it directly, and never repeat it. " +
       "Returns status 'pending' if the user hasn't answered within wait_seconds; call again later.",
     inputSchema: {

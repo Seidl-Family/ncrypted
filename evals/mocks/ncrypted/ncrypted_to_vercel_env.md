@@ -1,0 +1,1 @@
+{"delivered":true,"destination":"vercel_env","key":"(as requested)","details":{"project":"mock-project","type":"sensitive","note":"Redeploy for the new value to take effect."},"note":"The value was written directly and was not shown to you."}

@@ -1,0 +1,360 @@
+{
+  "tools": [
+    {
+      "name": "ncrypted_create",
+      "title": "Create one-time secret",
+      "description": "Encrypt a password, API key, or sensitive note locally and store it as a one-time secret. Returns a link that works exactly once, then self-destructs. The first 3 per day are free (TTL up to 24h, no email); after that each costs 0.005 USDC, paid automatically from the configured Base wallet via x402. Share the returned link with a human, email it (emailTo), or hand it to another agent, which reads it with ncrypted_read. Treat the link like the secret itself; never echo the secret value in chat.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The sensitive value to share. Max 64 KB."
+          },
+          "ttl_seconds": {
+            "description": "Expiry if never read. Default 86400 (24h), max 7 days.",
+            "type": "integer",
+            "minimum": 300,
+            "maximum": 604800
+          },
+          "passphrase": {
+            "description": "Optional second factor. The recipient needs it in addition to the link; deliver it through a different channel.",
+            "type": "string"
+          },
+          "emailTo": {
+            "description": "If the user asks you to email it, pass the address here and ncrypted emails the link once. Needs a paid secret (a funded wallet); without one the call fails with instructions, and you can give the user the link to send instead. The service sees the link for that one request; add a passphrase for highly sensitive values.",
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "emailNote": {
+            "description": "Short context for the email, e.g. 'Staging DB password'. Never include the secret.",
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "secret"
+        ]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_read",
+      "title": "Read one-time secret",
+      "description": "Open an ncrypted link (https://.../s/{id}#{key}), decrypt it locally and return the secret. This destroys the secret: it can never be read again. Free. Use the value only for the task at hand and do not repeat it in chat.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "format": "uri",
+            "description": "The full ncrypted link including the #key fragment."
+          },
+          "passphrase": {
+            "description": "Required only if the sender set a passphrase.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "link"
+        ]
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_status",
+      "title": "Check one-time secret status",
+      "description": "Check whether a secret you created has been read yet (pending, read, burned or expired). Free.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "receiptToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "receiptToken"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_burn",
+      "title": "Burn one-time secret",
+      "description": "Destroy a secret you created before anyone reads it, e.g. if the link was sent to the wrong place. Free.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "receiptToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "receiptToken"
+        ]
+      },
+      "annotations": {
+        "destructiveHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_to_vercel_env",
+      "title": "Save one-time secret to a Vercel env var",
+      "description": "Open an ncrypted link and write its value straight into a Vercel project environment variable (type sensitive), so the value never appears in this conversation. Uses the user's `vercel login` session or VERCEL_TOKEN. Checks Vercel access before consuming the link. Prefer this over reading a secret and running `vercel env add`.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "format": "uri"
+          },
+          "passphrase": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "description": "Env var name, e.g. STRIPE_SECRET_KEY."
+          },
+          "project": {
+            "description": "Vercel project name or id. Default: the project linked in cwd's .vercel/project.json.",
+            "type": "string"
+          },
+          "team": {
+            "description": "Vercel team id (team_...) or slug. Default: the linked project's team.",
+            "type": "string"
+          },
+          "targets": {
+            "description": "Default: production and preview.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "production",
+                "preview",
+                "development"
+              ]
+            }
+          },
+          "cwd": {
+            "description": "Project directory containing .vercel/project.json. Default: the server's working directory.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "link",
+          "key"
+        ]
+      },
+      "annotations": {
+        "destructiveHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_to_dotenv",
+      "title": "Save one-time secret to a .env file",
+      "description": "Open an ncrypted link and write its value into a local .env file (KEY=value, file mode 600) without showing it to you. Warns if the file isn't git-ignored.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "format": "uri"
+          },
+          "passphrase": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "description": "Variable name."
+          },
+          "path": {
+            "description": "Path to the .env file. Default: ./.env",
+            "type": "string"
+          }
+        },
+        "required": [
+          "link",
+          "key"
+        ]
+      },
+      "annotations": {
+        "destructiveHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_request",
+      "title": "Ask the user for a secret",
+      "description": "When you need a password, API key or token from the user, call this instead of asking them to paste it into chat. Returns a link for the user; they paste the value on that page, where it's encrypted in their browser to a key that only exists on this machine. Give the user the link and END YOUR TURN so they can open it; once they say they've submitted it, call ncrypted_request_fulfill to deliver it (e.g. to a Vercel env var) without ever seeing it. Free.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "What you need and why, shown to the user, e.g. 'Stripe secret key for the billing project (Vercel production)'."
+          },
+          "ttl_minutes": {
+            "description": "How long the request stays open. Default 60.",
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 1440
+          }
+        },
+        "required": [
+          "label"
+        ]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_request_fulfill",
+      "title": "Receive a requested secret",
+      "description": "After the user says they've submitted an ncrypted_request, collect and deliver the value. destination 'vercel_env' or 'dotenv' writes it without showing it to you (preferred). 'return' gives you the value; use it only when you must use it directly, and never repeat it. Returns status 'pending' if the user hasn't answered within wait_seconds; call again later.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The request id from ncrypted_request."
+          },
+          "destination": {
+            "type": "string",
+            "enum": [
+              "vercel_env",
+              "dotenv",
+              "return"
+            ]
+          },
+          "wait_seconds": {
+            "description": "How long to wait for the user. Default 60.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 120
+          },
+          "path": {
+            "description": "dotenv only: path to the .env file. Default ./.env",
+            "type": "string"
+          },
+          "key": {
+            "description": "Variable name (required for vercel_env and dotenv).",
+            "type": "string"
+          },
+          "project": {
+            "description": "Vercel project name or id. Default: the project linked in cwd's .vercel/project.json.",
+            "type": "string"
+          },
+          "team": {
+            "description": "Vercel team id (team_...) or slug. Default: the linked project's team.",
+            "type": "string"
+          },
+          "targets": {
+            "description": "Default: production and preview.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "production",
+                "preview",
+                "development"
+              ]
+            }
+          },
+          "cwd": {
+            "description": "Project directory containing .vercel/project.json. Default: the server's working directory.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "destination"
+        ]
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_wallet_setup",
+      "title": "Set up a payer wallet",
+      "description": "Create the local wallet that pays for secrets beyond the free tier (0.005 USDC each on Base), if none exists, and get a funding link for its owner. Funding needs only the address; send the user `fundUrl` and ask them to send a little USDC on Base (1 USDC = 200 secrets). The private key stays in a local file and is never shown to you. Set backup_to_owner only if the user wants a copy of the key: it's placed in a one-time link for them.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "amount_usdc": {
+            "description": "Suggested funding amount. Default 1.",
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 100
+          },
+          "backup_to_owner": {
+            "description": "Also create a one-time link containing the private key for the owner. Default false.",
+            "type": "boolean"
+          }
+        }
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ncrypted_wallet",
+      "title": "Show payer wallet",
+      "description": "Show today's remaining free secrets, plus the address and USDC balance (Base) of the wallet that pays for more. Free.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    }
+  ]
+}

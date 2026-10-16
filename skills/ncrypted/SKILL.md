@@ -33,9 +33,10 @@ Do **not** use it for non-sensitive data, or as long-term storage: a secret disa
 Without MCP, use the CLI: `printf '%s' "$VALUE" | npx -y ncrypted create --ttl 1h --json` and `npx -y ncrypted read "<link>"`.
 
 ## Typical flows
-- **"Put my OpenAI key in Vercel production"** → `ncrypted_request` (label: "OpenAI API key for <project>, Vercel production") → give the user the link → `ncrypted_request_fulfill` with `destination: "vercel_env"`, `key: "OPENAI_API_KEY"`, `targets: ["production"]` → tell the user it's set and to redeploy. You never see the key.
+- **"Put my OpenAI key in Vercel production"** → `ncrypted_request` (label: "OpenAI API key for <project>, Vercel production") → reply with the link and **end your turn** (the user can't open it while you're still working) → when they say it's submitted, `ncrypted_request_fulfill` with `destination: "vercel_env"`, `key: "OPENAI_API_KEY"`, `targets: ["production"]` → tell the user it's set and to redeploy. You never see the key.
 - **"Here's a link with the DB password, add it to .env"** → `ncrypted_to_dotenv`.
-- **"Send the new admin password to Sam"** → `ncrypted_create`, give the user the link (or `emailTo`).
+- **"Send the new admin password to Sam"** → `ncrypted_create`, give the user the link.
+- **"Email it to ops@example.com"** → `ncrypted_create` with `emailTo`. Emailing needs a funded wallet; if the call fails for that reason, give the user the link to send and offer `ncrypted_wallet_setup`.
 
 ## Rules
 1. **Never echo the secret value** in chat, summaries, commit messages, tickets or logs, before or after creating the link. Refer to it by what it is ("the staging DB password").

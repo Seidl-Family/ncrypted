@@ -93,4 +93,6 @@ npm run build && npm run e2e   # needs .env.e2e with a funded Base Sepolia walle
 
 After editing `skills/ncrypted/SKILL.md`, run `npm run sync:skill`.
 
+Tool-selection evals: `./scripts/run-evals.sh` runs `evals/` (14 cases, mocked MCP tools, ~$2.50) against a temporary copy of the plugin. Re-run after changing tool descriptions or the skill, and refresh `evals/mocks/ncrypted/_tools.json` from `tools/list` when tools change.
+
 On each MCP release, bump the pinned version in `plugins/ncrypted/.mcp.json`, `plugins/ncrypted/package.json` (then `npm install --package-lock-only` there) and `gemini-extension.json` (the Claude directory rejects `@latest`), then run the "Publish to MCP Registry" workflow.

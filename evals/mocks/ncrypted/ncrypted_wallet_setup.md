@@ -1,0 +1,1 @@
+{"created":true,"address":"0x7F3a9C2e41B8d05E6a1f94C3b2D7e8A10c5B9e42","usdc":0,"fundUrl":"https://ncrypted.ai/fund?address=0x7F3a9C2e41B8d05E6a1f94C3b2D7e8A10c5B9e42&amount=1","keyFile":"~/.config/ncrypted/wallet.key","next":"Give the user fundUrl and ask them to send USDC on Base."}

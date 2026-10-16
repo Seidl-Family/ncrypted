@@ -1,0 +1,1 @@
+{"link":"https://ncrypted.ai/s/MockId0000000000000000#MockKey00000000000000000000000000000000000","id":"MockId0000000000000000","expiresAt":"2026-10-17T12:00:00.000Z","receiptToken":"mock-receipt","emailed":false,"free":true,"freeRemaining":2,"note":"The link can be opened once."}
