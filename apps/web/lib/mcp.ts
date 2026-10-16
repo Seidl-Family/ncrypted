@@ -63,7 +63,7 @@ export interface McpCaller {
 
 /** Builds a fresh MCP server bound to this deployment's public origin. One per request (stateless). */
 export async function buildMcpServer(origin: string, caller: McpCaller): Promise<McpServer> {
-  const server = new McpServer({ name: "ncrypted", version: "0.1.2" });
+  const server = new McpServer({ name: "ncrypted", version: "0.2.0" });
   const paid = await getPaid();
 
   const create = async (args: Record<string, unknown>, free: boolean) => {

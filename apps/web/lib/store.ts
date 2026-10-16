@@ -35,6 +35,10 @@ interface Store {
   /** Increments a field in a hash of daily counters. */
   hincr(key: string, field: string, ttl: number): Promise<void>;
   hgetall(key: string): Promise<Record<string, number>>;
+  /** Generic JSON values (used by secret requests). */
+  setJson(key: string, value: unknown, ttl: number, onlyIfAbsent?: boolean): Promise<boolean>;
+  getJson<T>(key: string): Promise<T | null>;
+  takeJson<T>(key: string): Promise<T | null>;
 }
 
 function redisStore(redis: Redis): Store {
@@ -88,15 +92,29 @@ function redisStore(redis: Redis): Store {
       const h = (await redis.hgetall<Record<string, number | string>>(key)) ?? {};
       return Object.fromEntries(Object.entries(h).map(([k, v]) => [k, Number(v)]));
     },
+    async setJson(key, value, ttl, onlyIfAbsent) {
+      const res = onlyIfAbsent
+        ? await redis.set(key, JSON.stringify(value), { ex: ttl, nx: true })
+        : await redis.set(key, JSON.stringify(value), { ex: ttl });
+      return res === "OK";
+    },
+    async getJson<T>(key: string) {
+      const v = await redis.get<T | string>(key);
+      return v == null ? null : typeof v === "string" ? (JSON.parse(v) as T) : v;
+    },
+    async takeJson<T>(key: string) {
+      const v = await redis.getdel<T | string>(key);
+      return v == null ? null : typeof v === "string" ? (JSON.parse(v) as T) : v;
+    },
   };
 }
 
 /** Dev-only fallback so the app runs locally before Redis is provisioned. */
 function memoryStore(): Store {
   const g = globalThis as unknown as {
-    __ncrypted?: { s: Map<string, [string, number]>; m: Map<string, Meta & { claim?: boolean }>; c: Map<string, number>; h: Map<string, Record<string, number>> };
+    __ncrypted?: { s: Map<string, [string, number]>; m: Map<string, Meta & { claim?: boolean }>; c: Map<string, number>; h: Map<string, Record<string, number>>; j: Map<string, [string, number]> };
   };
-  const db = (g.__ncrypted ??= { s: new Map(), m: new Map(), c: new Map(), h: new Map() });
+  const db = (g.__ncrypted ??= { s: new Map(), m: new Map(), c: new Map(), h: new Map(), j: new Map() });
   const live = (id: string) => {
     const e = db.s.get(id);
     if (e && e[1] < Date.now()) db.s.delete(id);
@@ -152,6 +170,21 @@ function memoryStore(): Store {
     },
     async hgetall(key) {
       return { ...(db.h.get(key) ?? {}) };
+    },
+    async setJson(key, value, ttl, onlyIfAbsent) {
+      const cur = db.j.get(key);
+      if (onlyIfAbsent && cur && cur[1] > Date.now()) return false;
+      db.j.set(key, [JSON.stringify(value), Date.now() + ttl * 1000]);
+      return true;
+    },
+    async getJson<T>(key: string) {
+      const cur = db.j.get(key);
+      return cur && cur[1] > Date.now() ? (JSON.parse(cur[0]) as T) : null;
+    },
+    async takeJson<T>(key: string) {
+      const cur = db.j.get(key);
+      db.j.delete(key);
+      return cur && cur[1] > Date.now() ? (JSON.parse(cur[0]) as T) : null;
     },
   };
 }

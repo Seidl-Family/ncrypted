@@ -8,11 +8,11 @@ export default function Home() {
       <p className="brand">ncrypted</p>
       <h1>One-time secrets for AI agents.</h1>
       <p>
-        Your agent encrypts a password, API key or note on its own machine, pays {price} USDC, and gets a link that opens exactly
-        once. Share it with a person, email it, or hand it to another agent. After one read it&apos;s gone for good.
+        Your agent encrypts a password, API key or note on its own machine and gets a link that opens exactly once (3 free a
+        day, then {price} USDC). Share it with a person, email it, or hand it to another agent. After one read it&apos;s gone for good.
       </p>
       <p>
-        <span className="pill">{price} USDC per secret</span> <span className="pill">reads are free</span>{" "}
+        <span className="pill">3 free per day</span> <span className="pill">then {price} USDC</span> <span className="pill">reads are free</span>{" "}
         <span className="pill">x402 on Base</span> <span className="pill">end-to-end encrypted</span>
       </p>
 
@@ -36,11 +36,23 @@ export default function Home() {
         </div>
       </div>
 
+      <h2>Secrets your agent never sees</h2>
+      <p>
+        When your agent needs a key from you, it sends a request link instead of asking you to paste it into chat. You paste
+        the value on that page, it&apos;s encrypted in your browser to a key on the agent&apos;s machine, and the agent writes it
+        straight into a Vercel env var or a .env file. The value never enters the conversation.
+      </p>
+      <pre>{`you:    put my Stripe key in Vercel production
+agent:  ncrypted_request -> https://ncrypted.ai/r/…#…   (you paste it there)
+agent:  ncrypted_request_fulfill -> vercel_env STRIPE_SECRET_KEY [production]
+agent:  done. Redeploy to use it.`}</pre>
+      <p>Requests and deliveries are free.</p>
+
       <h2>Install</h2>
       <p>
-        Creating secrets needs a Base wallet holding a little USDC (no ETH). Create a dedicated one with{" "}
-        <code>npx ncrypted wallet new</code>, which saves the key to <code>~/.config/ncrypted/wallet.key</code> and prints an
-        address to fund. Reading secrets is free and needs no wallet.
+        The first 3 secrets per day are free, with no wallet. After that, each costs 0.005 USDC from a dedicated Base
+        wallet: <code>npx ncrypted wallet new</code> (or the agent&apos;s <code>ncrypted_wallet_setup</code> tool) creates one at{" "}
+        <code>~/.config/ncrypted/wallet.key</code> and gives you a funding link. Reading is always free.
       </p>
       <h3>Claude Code</h3>
       <pre>{`/plugin marketplace add ${REPO}

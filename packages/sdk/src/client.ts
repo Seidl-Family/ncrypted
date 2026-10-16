@@ -1,13 +1,16 @@
 import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x402/fetch";
 import { ExactEvmScheme } from "@x402/evm";
 import { privateKeyToAccount } from "viem/accounts";
-import { encrypt, decrypt, parseLink, type EncryptedPayload } from "./crypto.js";
-import { normalizeKey, readWalletKey } from "./wallet.js";
+import { encrypt, decrypt, parseLink, generateRequestKeypair, openSealed, type EncryptedPayload, type SealedPayload } from "./crypto.js";
+import { prepareDestination, type Destination, type DeliveryResult } from "./destinations.js";
+import { saveLocalRequest, loadLocalRequest, removeLocalRequest } from "./localRequests.js";
+import { normalizeKey, readWalletKey, createWallet, usdcBalance, walletPath } from "./wallet.js";
+import { privateKeyToAccount as accountOf } from "viem/accounts";
 
 export const DEFAULT_BASE_URL = "https://ncrypted.ai";
 /** Hard cap on what the SDK will ever pay for one secret, whatever the server asks. */
 export const MAX_PRICE = "$0.01";
-export const SDK_VERSION = "0.1.3";
+export const SDK_VERSION = "0.2.0";
 
 export interface NcryptedOptions {
   /** API origin. Defaults to NCRYPTED_URL or the hosted service. */
@@ -179,6 +182,138 @@ export class Ncrypted {
       free: !!data.free,
       ...(data.free ? { freeRemaining: data.freeRemaining } : {}),
     };
+  }
+
+  /**
+   * Reads a one-time link and writes the value straight into a destination (Vercel env var, .env file), so it never
+   * passes through the caller (e.g. an LLM). The destination is checked before the secret is consumed. If writing still
+   * fails afterwards, the value is re-saved to a new one-time link, which is returned in the error.
+   */
+  async deliver(link: string, destination: Destination, opts: { passphrase?: string } = {}): Promise<DeliveryResult> {
+    const target = await prepareDestination(destination);
+    const value = await this.read(link, opts.passphrase);
+    return this.deliverOrRescue(value, target);
+  }
+
+  private async deliverOrRescue(value: string, target: { deliver(v: string): Promise<DeliveryResult> }): Promise<DeliveryResult> {
+    try {
+      return await target.deliver(value);
+    } catch (e) {
+      let rescue = "";
+      try {
+        const saved = await this.create(value, { ttl: 3600 });
+        rescue = ` The value was re-saved to a new one-time link (1h): ${saved.link}`;
+      } catch {
+        rescue = " Re-saving the value also failed; ask for it again.";
+      }
+      throw new Error(`Delivery failed: ${(e as Error).message}.${rescue}`);
+    }
+  }
+
+  /**
+   * Starts a secret request: returns a link for a human, who pastes the value into the page. It's encrypted in their
+   * browser to a key that only exists on this machine. Free. Complete it with fulfillRequest().
+   */
+  async requestSecret(label: string, opts: { ttl?: number } = {}): Promise<{ id: string; url: string; expiresAt: string }> {
+    const { publicKey, privateKey } = await generateRequestKeypair();
+    const res = await fetch(`${this.baseUrl}/api/v1/requests`, {
+      method: "POST",
+      headers: this.headers({ "content-type": "application/json" }),
+      body: JSON.stringify({ publicKey, label, ttl: opts.ttl ?? 3600 }),
+    });
+    if (!res.ok) throw await errorFrom(res);
+    const data = (await res.json()) as { id: string; url: string; expiresAt: string; pollToken: string };
+    await saveLocalRequest({ id: data.id, origin: this.baseUrl, publicKey, privateKey, pollToken: data.pollToken, label, expiresAt: data.expiresAt });
+    return { id: data.id, url: `${data.url}#${publicKey}`, expiresAt: data.expiresAt };
+  }
+
+  /**
+   * Waits up to waitSeconds for the human to answer a request. With a destination, the value is written there and
+   * never returned; without one, the value is returned. Resolves { status: "pending" } if not answered yet.
+   */
+  async fulfillRequest(
+    id: string,
+    opts: { destination?: Destination; waitSeconds?: number } = {},
+  ): Promise<{ status: "pending"; expiresAt: string } | { status: "delivered"; result: DeliveryResult } | { status: "received"; value: string }> {
+    const local = await loadLocalRequest(id);
+    const target = opts.destination ? await prepareDestination(opts.destination) : undefined;
+    const deadline = Date.now() + Math.min(opts.waitSeconds ?? 0, 300) * 1000;
+    for (;;) {
+      const res = await fetch(`${local.origin}/api/v1/requests/${id}/collect`, {
+        method: "POST",
+        headers: this.headers({ authorization: `Bearer ${local.pollToken}` }),
+      });
+      if (res.status === 410) {
+        await removeLocalRequest(id);
+        throw new NcryptedError("This request expired or was already collected.", 410);
+      }
+      if (!res.ok) throw await errorFrom(res);
+      const body = (await res.json()) as { status: string; expiresAt?: string; sealed?: SealedPayload };
+      if (body.status === "fulfilled" && body.sealed) {
+        const value = await openSealed(body.sealed, local.privateKey, local.publicKey);
+        await removeLocalRequest(id);
+        if (!target) return { status: "received", value };
+        return { status: "delivered", result: await this.deliverOrRescue(value, target) };
+      }
+      if (Date.now() >= deadline) return { status: "pending", expiresAt: body.expiresAt ?? local.expiresAt };
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+
+  /** Link to a page where the wallet's owner can send it USDC on Base. */
+  fundUrl(address: string, amountUsdc = 1): string {
+    return `${this.baseUrl}/fund?address=${address}&amount=${amountUsdc}`;
+  }
+
+  /**
+   * Sets up the local payer wallet if there isn't one. Returns its address and a funding link for the owner; funding
+   * needs only the address. With backupToOwner, the private key is also put into a one-time link (24h) for the owner,
+   * so they can recover or withdraw the funds. The key itself is never returned.
+   */
+  async setupWallet(opts: { amountUsdc?: number; backupToOwner?: boolean } = {}): Promise<{
+    created: boolean;
+    address: string;
+    usdc: number;
+    fundUrl: string;
+    keyFile: string;
+    backupLink?: string;
+    backupError?: string;
+  }> {
+    const existing = normalizeKey(this.opts.privateKey ?? process.env.NCRYPTED_WALLET_PRIVATE_KEY) ?? (await readWalletKey());
+    let address: string;
+    let created = false;
+    if (existing) address = accountOf(existing).address;
+    else {
+      try {
+        address = (await createWallet()).address;
+        created = true;
+      } catch (e) {
+        // Another process created it at the same moment; use that one.
+        if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+        address = accountOf((await readWalletKey())!).address;
+      }
+      this.payFetch = undefined; // pick up the new wallet on the next create()
+    }
+    const result = {
+      created,
+      address,
+      usdc: await usdcBalance(address).catch(() => 0),
+      fundUrl: this.fundUrl(address, opts.amountUsdc ?? 1),
+      keyFile: existing && !(await readWalletKey()) ? "NCRYPTED_WALLET_PRIVATE_KEY" : walletPath(),
+    };
+    if (!opts.backupToOwner) return result;
+    try {
+      const key = existing ?? (await readWalletKey());
+      const backup = await this.create(`ncrypted payer wallet ${address}\nPrivate key: ${key}\nNetwork: Base`, { ttl: 86_400 });
+      return { ...result, backupLink: backup.link };
+    } catch (e) {
+      return {
+        ...result,
+        backupError:
+          `Couldn't create the backup link yet (${(e as Error).message.split(".")[0]}). ` +
+          "Once the wallet is funded, run setup again with backup to create it.",
+      };
+    }
   }
 
   /** Free-tier allowance left today and the paid price. */

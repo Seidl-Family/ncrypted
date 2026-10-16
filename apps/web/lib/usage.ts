@@ -34,7 +34,15 @@ export async function claimFree(ip: string): Promise<boolean> {
   return (await store.incr(`free:all:${today()}`, 2 * DAY)) <= FREE_GLOBAL_PER_DAY;
 }
 
-export type UsageEvent = "created_paid" | "created_free" | "read" | "burned" | "emailed";
+export type UsageEvent =
+  | "created_paid"
+  | "created_free"
+  | "read"
+  | "burned"
+  | "emailed"
+  | "request_created"
+  | "request_fulfilled"
+  | "request_collected";
 
 /** Counts an event in today's stats hash (no personal data). Never throws. */
 export async function track(event: UsageEvent, client?: string): Promise<void> {

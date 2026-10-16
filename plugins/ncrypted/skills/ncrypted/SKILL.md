@@ -1,6 +1,6 @@
 ---
 name: ncrypted
-description: Share passwords, API keys, tokens, and other sensitive values safely as one-time, end-to-end encrypted links that self-destruct after a single read. Use whenever a credential or secret must be sent to a person (by link or email) or handed off to another agent, instead of pasting it into chat, tickets, commits, or logs. Also use to open ncrypted links (https://.../s/{id}#{key}) received from others.
+description: Share, receive and install passwords, API keys and tokens without them appearing in chat. Use whenever a credential must be sent to a person or another agent (one-time encrypted link), whenever you need a secret FROM the user (send them a request link instead of asking them to paste it), and whenever a secret must end up in a Vercel env var or .env file (write it there directly without seeing it). Also use to open ncrypted links (https://.../s/{id}#{key}).
 ---
 
 # ncrypted: one-time secrets
@@ -10,6 +10,8 @@ ncrypted turns a sensitive value into a link that can be opened **exactly once**
 ## When to use it
 - A user asks you to send, share or hand over a password, API key, token, recovery code, private key or similar.
 - You generated a credential (e.g. a new DB password) that a person or another agent needs.
+- **You need a secret from the user** (e.g. "add my Stripe key to Vercel"): use `ncrypted_request`. Never ask them to paste it into chat.
+- **A secret must end up in a Vercel env var or a .env file**: use `ncrypted_to_vercel_env` / `ncrypted_to_dotenv` (or a request with that destination) so the value never passes through you.
 - Another agent or person gives you an ncrypted link to open.
 
 Do **not** use it for non-sensitive data, or as long-term storage: a secret disappears after one read or at its expiry.
@@ -21,9 +23,19 @@ Do **not** use it for non-sensitive data, or as long-term storage: a secret disa
 | `ncrypted_read` | `link`, optional `passphrase`. Returns the plaintext and destroys the secret. |
 | `ncrypted_status` | `id`, `receiptToken`: pending / read / burned / expired. |
 | `ncrypted_burn` | `id`, `receiptToken`: destroy an unread secret. |
-| `ncrypted_wallet` | Payer address, USDC balance and how many secrets it can afford. |
+| `ncrypted_to_vercel_env` | `link`, `key`, optional `project`, `team`, `targets`, `cwd`: writes the value into a Vercel env var (sensitive) without showing it to you. Checks Vercel access first. |
+| `ncrypted_to_dotenv` | `link`, `key`, optional `path`: writes `KEY=value` into a .env file (mode 600). |
+| `ncrypted_request` | `label` (what you need and why): returns a link for the user to paste the value into. Free. |
+| `ncrypted_request_fulfill` | `id`, `destination` (`vercel_env`, `dotenv` or `return`), destination fields, `wait_seconds`: waits for the user, then delivers. Prefer a destination over `return`. |
+| `ncrypted_wallet_setup` | Creates the payer wallet if missing and returns `fundUrl` for the user. `backup_to_owner` puts the key in a one-time link for them. |
+| `ncrypted_wallet` | Free secrets left today, payer address, USDC balance. |
 
 Without MCP, use the CLI: `printf '%s' "$VALUE" | npx -y ncrypted create --ttl 1h --json` and `npx -y ncrypted read "<link>"`.
+
+## Typical flows
+- **"Put my OpenAI key in Vercel production"** → `ncrypted_request` (label: "OpenAI API key for <project>, Vercel production") → give the user the link → `ncrypted_request_fulfill` with `destination: "vercel_env"`, `key: "OPENAI_API_KEY"`, `targets: ["production"]` → tell the user it's set and to redeploy. You never see the key.
+- **"Here's a link with the DB password, add it to .env"** → `ncrypted_to_dotenv`.
+- **"Send the new admin password to Sam"** → `ncrypted_create`, give the user the link (or `emailTo`).
 
 ## Rules
 1. **Never echo the secret value** in chat, summaries, commit messages, tickets or logs, before or after creating the link. Refer to it by what it is ("the staging DB password").
@@ -40,7 +52,8 @@ Without MCP, use the CLI: `printf '%s' "$VALUE" | npx -y ncrypted create --ttl 1
 ## Setup
 Creating secrets needs a **dedicated, low-balance** Base wallet holding USDC (0.005 USDC per secret; no ETH needed). The SDK refuses to pay more than 0.01 USDC per request. The key is read from `NCRYPTED_WALLET_PRIVATE_KEY`, else `~/.config/ncrypted/wallet.key`.
 
-- Check it with `ncrypted_wallet`. If it reports `configured: false`, ask the user to run `npx ncrypted wallet new` in a terminal and send a little USDC on Base to the printed address. Never ask the user to paste a private key into chat.
+- The first 3 secrets per day are free (TTL up to 24h, no email). Requests, reads and deliveries are free.
+- Check with `ncrypted_wallet`. If no wallet is configured and more is needed, call `ncrypted_wallet_setup` and give the user `fundUrl`. Never ask the user for a private key, and don't open a `backupLink` yourself.
 - Reading links works without any wallet.
 
 ## Hosted alternative

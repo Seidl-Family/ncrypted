@@ -89,3 +89,73 @@ export function parseLink(link: string): { origin: string; id: string; key: stri
   if (!m || !key) throw new Error("Not a valid ncrypted link (expected https://host/s/{id}#{key})");
   return { origin: url.origin, id: m[1], key };
 }
+
+// ---- Secret requests: a human seals a value to the requesting agent's X25519 public key. ----
+
+const REQUEST_INFO = new TextEncoder().encode("ncrypted request v1");
+
+export interface SealedPayload {
+  v: number;
+  epk: string; // ephemeral X25519 public key, base64url (32 bytes)
+  iv: string; // base64url, 12 bytes
+  ciphertext: string; // base64url
+}
+
+/** New X25519 keypair for a secret request. publicKey goes in the request link's #fragment; keep privateKey local. */
+export async function generateRequestKeypair(): Promise<{ publicKey: string; privateKey: JsonWebKey }> {
+  const kp = (await crypto.subtle.generateKey({ name: "X25519" }, true, ["deriveBits"])) as CryptoKeyPair;
+  const raw = new Uint8Array(await crypto.subtle.exportKey("raw", kp.publicKey));
+  return { publicKey: toB64url(raw), privateKey: await crypto.subtle.exportKey("jwk", kp.privateKey) };
+}
+
+async function requestKey(shared: ArrayBuffer, epk: Uint8Array, pk: Uint8Array) {
+  const salt = new Uint8Array(epk.length + pk.length);
+  salt.set(epk);
+  salt.set(pk, epk.length);
+  const base = await crypto.subtle.importKey("raw", shared, "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt, info: REQUEST_INFO }, base, { name: "AES-GCM", length: 256 }, false, [
+    "encrypt",
+    "decrypt",
+  ]);
+}
+
+/** Seals plaintext so only the holder of the request's private key can open it. Used by the request page. */
+export async function sealToPublicKey(plaintext: string, publicKey: string): Promise<SealedPayload> {
+  const data = new TextEncoder().encode(plaintext);
+  if (data.length === 0) throw new Error("Secret is empty");
+  if (data.length > MAX_PLAINTEXT_BYTES) throw new Error(`Secret exceeds ${MAX_PLAINTEXT_BYTES} bytes`);
+  const pk = fromB64url(publicKey);
+  if (pk.length !== 32) throw new Error("Invalid request public key");
+  const recipient = await crypto.subtle.importKey("raw", pk, { name: "X25519" }, false, []);
+  const eph = (await crypto.subtle.generateKey({ name: "X25519" }, true, ["deriveBits"])) as CryptoKeyPair;
+  const epk = new Uint8Array(await crypto.subtle.exportKey("raw", eph.publicKey));
+  const shared = await crypto.subtle.deriveBits({ name: "X25519", public: recipient }, eph.privateKey, 256);
+  const key = await requestKey(shared, epk, pk);
+  const iv = randomBytes(12);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data));
+  return { v: VERSION, epk: toB64url(epk), iv: toB64url(iv), ciphertext: toB64url(ct) };
+}
+
+/** Opens a sealed payload with the request's private key. Throws if it was tampered with or sealed to another key. */
+export async function openSealed(sealed: SealedPayload, privateKey: JsonWebKey, publicKey: string): Promise<string> {
+  const priv = await crypto.subtle.importKey("jwk", privateKey, { name: "X25519" }, false, ["deriveBits"]);
+  const epk = fromB64url(sealed.epk);
+  const eph = await crypto.subtle.importKey("raw", epk, { name: "X25519" }, false, []);
+  const shared = await crypto.subtle.deriveBits({ name: "X25519", public: eph }, priv, 256);
+  const key = await requestKey(shared, epk, fromB64url(publicKey));
+  try {
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64url(sealed.iv) }, key, fromB64url(sealed.ciphertext));
+    return new TextDecoder().decode(pt);
+  } catch {
+    throw new Error("Could not open the submitted secret: it was tampered with or sealed to a different key");
+  }
+}
+
+/** Splits a request link: https://host/r/{id}#{publicKey} */
+export function parseRequestLink(link: string): { origin: string; id: string; publicKey: string } {
+  const url = new URL(link);
+  const m = url.pathname.match(/^\/r\/([A-Za-z0-9_-]{16,64})\/?$/);
+  const publicKey = url.hash.slice(1);
+  if (!m || !publicKey) throw new Error("Not a valid ncrypted request link (expected https://host/r/{id}#{publicKey})");
+  return { origin: url.origin, id: m[1], publicKey };
+}

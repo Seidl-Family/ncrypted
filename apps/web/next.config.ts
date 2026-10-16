@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: security },
       {
-        source: "/s/:id",
+        source: "/:kind(s|r)/:id",
         headers: [
           { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
           { key: "Cache-Control", value: "no-store" },
