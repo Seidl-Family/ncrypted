@@ -38,6 +38,7 @@ server.registerTool(
       emailTo: z.string().email().optional().describe("If the user asks you to email it, pass the address here and ncrypted emails the link once. Needs a paid secret (a funded wallet); without one the call fails with instructions, and you can give the user the link to send instead. The service sees the link for that one request; add a passphrase for highly sensitive values."),
       emailNote: z.string().max(200).optional().describe("Short context for the email, e.g. 'Staging DB password'. Never include the secret."),
     },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   },
   async ({ secret, ttl_seconds, passphrase, emailTo, emailNote }) => {
     try {
@@ -198,6 +199,7 @@ server.registerTool(
       label: z.string().min(1).max(120).describe("What you need and why, shown to the user, e.g. 'Stripe secret key for the billing project (Vercel production)'."),
       ttl_minutes: z.number().int().min(5).max(1440).optional().describe("How long the request stays open. Default 60."),
     },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   },
   async ({ label, ttl_minutes }) => {
     try {
@@ -228,6 +230,7 @@ server.registerTool(
       ...vercelFields,
       key: z.string().optional().describe("Variable name (required for vercel_env and dotenv)."),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
   },
   async ({ id, destination, wait_seconds, path, key, project, team, targets, cwd }) => {
     try {
@@ -261,6 +264,7 @@ server.registerTool(
       amount_usdc: z.number().min(0.01).max(100).optional().describe("Suggested funding amount. Default 1."),
       backup_to_owner: z.boolean().optional().describe("Also create a one-time link containing the private key for the owner. Default false."),
     },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   },
   async ({ amount_usdc, backup_to_owner }) => {
     try {
