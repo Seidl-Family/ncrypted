@@ -9,6 +9,10 @@ const security = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ["ncrypted"],
+  // @x402/next loads "@x402/extensions/bazaar" with a runtime import() that bundlers skip. Bundled, the
+  // package never reaches the function's node_modules and that import fails on every paid request
+  // ("Failed to load bazaar extension"). Kept external, it is traced into the function with its deps.
+  serverExternalPackages: ["@x402/extensions"],
   async headers() {
     return [
       { source: "/:path*", headers: security },

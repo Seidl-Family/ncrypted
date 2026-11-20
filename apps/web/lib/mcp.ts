@@ -71,8 +71,6 @@ export interface McpCaller {
 /** Builds a fresh MCP server bound to this deployment's public origin. One per request (stateless). */
 export async function buildMcpServer(origin: string, caller: McpCaller): Promise<McpServer> {
   const server = new McpServer({ name: "ncrypted", version: "0.2.0" });
-  const paid = await getPaid();
-
   const create = async (args: Record<string, unknown>, free: boolean) => {
     const { secret, ttl_seconds, passphrase } = args as { secret: string; ttl_seconds?: number; passphrase?: string };
     const { payload, key } = await encrypt(secret, passphrase);
@@ -87,7 +85,18 @@ export async function buildMcpServer(origin: string, caller: McpCaller): Promise
       note: "The link can be opened once. Keep receiptToken to check status or burn it.",
     });
   };
-  const paidCreate = paid((args) => create(args, false));
+  // Set up payments only when a paid create needs them. Awaiting the facilitator for every request
+  // made initialize, tools/list and the free tools fail whenever the facilitator was slow or down.
+  const paidCreate = async (args: Record<string, unknown>, extra: { _meta?: Record<string, unknown> }) => {
+    let paid;
+    try {
+      paid = await getPaid();
+    } catch (e) {
+      console.error("x402 setup failed:", e);
+      return fail("Payments are temporarily unavailable. Try again in a minute.");
+    }
+    return paid((a) => create(a, false))(args as never, extra as never);
+  };
 
   server.registerTool(
     "ncrypted_create",
