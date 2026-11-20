@@ -109,6 +109,7 @@ export async function buildMcpServer(origin: string, caller: McpCaller): Promise
         "id and receiptToken to check delivery (ncrypted_status) or revoke the link (ncrypted_burn). " +
         HOSTED_NOTE,
       inputSchema: createInput,
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     (async (args: Record<string, unknown>, extra: { _meta?: Record<string, unknown> }) => {
       // Free tier first, unless the client is already paying.
