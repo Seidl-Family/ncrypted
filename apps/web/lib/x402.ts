@@ -18,7 +18,11 @@ export const PAY_TO = process.env.NCRYPTED_PAY_TO;
 const FACILITATOR_TIMEOUT_MS = 20_000;
 
 type Supported = Awaited<ReturnType<HTTPFacilitatorClient["getSupported"]>>;
-const SUPPORTED_KEY = "x402:supported";
+// Preview deployments share this Redis but use the x402.org facilitator on a testnet, so the key
+// names the facilitator: a copy cached by one environment must never be read by another.
+const supportedKey = (facilitatorUrl: string) => `x402:supported:${facilitatorUrl}`;
+// A copy that doesn't list our network would fail route validation and break every paid request.
+const coversNetwork = (value: Supported) => value.kinds.some((k) => k.network === NETWORK);
 const SUPPORTED_FRESH_MS = 60 * 60 * 1000; // use the shared copy without asking for an hour
 const SUPPORTED_KEEP_S = 7 * 86400; // keep a stale copy as a fallback for a week
 
@@ -36,11 +40,13 @@ class CachedFacilitatorClient extends HTTPFacilitatorClient {
     } catch {
       store = undefined; // no Redis (local build): go straight to the facilitator
     }
-    const cached = store ? await store.getJson<{ at: number; value: Supported }>(SUPPORTED_KEY).catch(() => null) : null;
+    const key = supportedKey(this.url);
+    const stored = store ? await store.getJson<{ at: number; value: Supported }>(key).catch(() => null) : null;
+    const cached = stored && coversNetwork(stored.value) ? stored : null;
     if (cached && Date.now() - cached.at < SUPPORTED_FRESH_MS) return cached.value;
     try {
       const value = await super.getSupported();
-      await store?.setJson(SUPPORTED_KEY, { at: Date.now(), value }, SUPPORTED_KEEP_S).catch(() => {});
+      if (coversNetwork(value)) await store?.setJson(key, { at: Date.now(), value }, SUPPORTED_KEEP_S).catch(() => {});
       return value;
     } catch (err) {
       if (cached) {
